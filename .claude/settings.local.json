@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(npx eslint *)",
+      "Bash(npm run *)",
+      "Bash(taskkill /PID 35552 /F)",
+      "PowerShell(Stop-Process -Id 35552 -Force)",
+      "PowerShell(Get-Process -Id 35552 -ErrorAction SilentlyContinue)"
+    ]
+  }
+}

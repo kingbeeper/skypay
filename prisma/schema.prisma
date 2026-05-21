@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String        @id @default(cuid())
+  email         String        @unique
+  passwordHash  String
+  name          String?
+  kycStatus     String        @default("approved")
+  isDemo        Boolean       @default(false)
+  isAdmin       Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+  balances      Balance[]
+  transactions  Transaction[]
+  cards         Card[]
+  raffleEntries RaffleEntry[]
+  raffleWins    RaffleRound[] @relation("RaffleWinner")
+}
+
+model Card {
+  id                String            @id @default(cuid())
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type              String            @default("virtual")
+  status            String            @default("active")
+  pan               String
+  last4             String
+  expMonth          Int
+  expYear           Int
+  cvv               String
+  holderName        String
+  spendingSource    String            @default("USD")
+  monthlyLimit      Float             @default(2000)
+  physicalRequested Boolean           @default(false)
+  createdAt         DateTime          @default(now())
+  transactions      CardTransaction[]
+}
+
+model CardTransaction {
+  id           String   @id @default(cuid())
+  cardId       String
+  card         Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  merchant     String
+  category     String
+  amountUsd    Float
+  sourceAsset  String
+  sourceAmount Float
+  rate         Float
+  status       String   @default("approved")
+  createdAt    DateTime @default(now())
+
+  @@index([cardId, createdAt])
+}
+
+model Balance {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset     String
+  amount    Float    @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, asset])
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String
+  fromAsset   String?
+  toAsset     String?
+  fromAmount  Float?
+  toAmount    Float?
+  rate        Float?
+  status      String   @default("completed")
+  description String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model RaffleRound {
+  id               String        @id @default(cuid())
+  drawsAt          DateTime
+  prizeBtc         Float          @default(1.0)
+  ticketPriceUsd   Float          @default(20.0)
+  syntheticTickets Int            @default(0)
+  status           String         @default("open") // open | drawn
+  winnerUserId     String?
+  winner           User?          @relation("RaffleWinner", fields: [winnerUserId], references: [id])
+  winnerHandle     String?
+  winnerTickets    Int?
+  totalTicketsAtDraw Int?
+  drawnAt          DateTime?
+  createdAt        DateTime       @default(now())
+  entries          RaffleEntry[]
+
+  @@index([status, drawsAt])
+}
+
+model RaffleEntry {
+  id        String      @id @default(cuid())
+  roundId   String
+  round     RaffleRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tickets   Int         @default(0)
+  spentUsd  Float       @default(0)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@unique([roundId, userId])
+  @@index([userId])
+}

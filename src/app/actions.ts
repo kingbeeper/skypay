@@ -1,0 +1,705 @@
+"use server";
+
+import bcrypt from "bcryptjs";
+import { Prisma } from "@prisma/client";
+import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import { prisma } from "@/lib/db";
+import { getSession } from "@/lib/session";
+import { getCurrentUser } from "@/lib/auth";
+import { fetchPrices } from "@/lib/prices";
+import { ASSETS, type AssetSymbol } from "@/lib/assets";
+import {
+  getOrCreateCurrentRound,
+  nextDrawDate,
+  pickWinner,
+} from "@/lib/raffle";
+import { MIN_USD_FOR_CARD } from "@/lib/cards";
+
+export type AuthResult = { error: string } | undefined;
+export type SwapResult =
+  | { ok: true; message: string }
+  | { ok: false; error: string }
+  | undefined;
+
+const DEMO_EMAIL = "demo@skypay.app";
+
+function isValidEmail(email: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+export async function signupAction(
+  _prev: AuthResult,
+  formData: FormData
+): Promise<AuthResult> {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const password = String(formData.get("password") ?? "");
+  const name = String(formData.get("name") ?? "").trim() || null;
+
+  if (!isValidEmail(email)) return { error: "Correo no válido" };
+  if (password.length < 8)
+    return { error: "La contraseña debe tener al menos 8 caracteres" };
+
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) return { error: "Ya existe una cuenta con ese correo" };
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  const user = await prisma.user.create({
+    data: {
+      email,
+      passwordHash,
+      name,
+      kycStatus: "approved",
+      balances: {
+        create: [{ asset: "USD", amount: 0 }],
+      },
+    },
+  });
+
+  const session = await getSession();
+  session.userId = user.id;
+  session.email = user.email;
+  session.isDemo = false;
+  await session.save();
+
+  redirect("/dashboard");
+}
+
+export async function loginAction(
+  _prev: AuthResult,
+  formData: FormData
+): Promise<AuthResult> {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const password = String(formData.get("password") ?? "");
+
+  if (!email || !password) return { error: "Faltan campos" };
+
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) return { error: "Credenciales inválidas" };
+
+  const ok = await bcrypt.compare(password, user.passwordHash);
+  if (!ok) return { error: "Credenciales inválidas" };
+
+  const session = await getSession();
+  session.userId = user.id;
+  session.email = user.email;
+  session.isDemo = user.isDemo;
+  await session.save();
+
+  redirect("/dashboard");
+}
+
+export async function demoLoginAction() {
+  const user = await prisma.user.findUnique({ where: { email: DEMO_EMAIL } });
+  if (!user) {
+    throw new Error(
+      "Demo user not seeded — run `npm run db:seed`"
+    );
+  }
+  const session = await getSession();
+  session.userId = user.id;
+  session.email = user.email;
+  session.isDemo = true;
+  await session.save();
+  redirect("/dashboard");
+}
+
+export async function logoutAction() {
+  const session = await getSession();
+  session.destroy();
+  redirect("/login");
+}
+
+const ASSET_KEYS = Object.keys(ASSETS) as AssetSymbol[];
+
+function isAssetSymbol(v: string): v is AssetSymbol {
+  return (ASSET_KEYS as string[]).includes(v);
+}
+
+export async function swapAction(
+  _prev: SwapResult,
+  formData: FormData
+): Promise<SwapResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "No autenticado" };
+
+  const fromAsset = String(formData.get("fromAsset") ?? "");
+  const toAsset = String(formData.get("toAsset") ?? "");
+  const fromAmountRaw = String(formData.get("fromAmount") ?? "");
+  const fromAmount = Number(fromAmountRaw);
+
+  if (!isAssetSymbol(fromAsset) || !isAssetSymbol(toAsset)) {
+    return { ok: false, error: "Activos inválidos" };
+  }
+  if (fromAsset === toAsset) {
+    return { ok: false, error: "Elige dos activos distintos" };
+  }
+  if (!Number.isFinite(fromAmount) || fromAmount <= 0) {
+    return { ok: false, error: "Monto inválido" };
+  }
+
+  const fromBalance = user.balances.find((b) => b.asset === fromAsset);
+  if (!fromBalance || fromBalance.amount < fromAmount) {
+    return { ok: false, error: "Saldo insuficiente" };
+  }
+
+  const prices = await fetchPrices();
+  const fromPrice = prices[fromAsset]?.usd ?? 0;
+  const toPrice = prices[toAsset]?.usd ?? 0;
+  if (fromPrice <= 0 || toPrice <= 0) {
+    return { ok: false, error: "Precio no disponible" };
+  }
+
+  const usdValue = fromAmount * fromPrice;
+  const toAmount = usdValue / toPrice;
+  const rate = fromPrice / toPrice;
+
+  await prisma.$transaction([
+    prisma.balance.update({
+      where: { userId_asset: { userId: user.id, asset: fromAsset } },
+      data: { amount: { decrement: fromAmount } },
+    }),
+    prisma.balance.upsert({
+      where: { userId_asset: { userId: user.id, asset: toAsset } },
+      update: { amount: { increment: toAmount } },
+      create: { userId: user.id, asset: toAsset, amount: toAmount },
+    }),
+    prisma.transaction.create({
+      data: {
+        userId: user.id,
+        type: "swap",
+        fromAsset,
+        toAsset,
+        fromAmount,
+        toAmount,
+        rate,
+        status: "completed",
+        description: `Swap ${fromAsset} → ${toAsset}`,
+      },
+    }),
+  ]);
+
+  revalidatePath("/dashboard/swap");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/history");
+
+  const fmtFrom = fromAmount.toLocaleString("en-US", {
+    maximumFractionDigits: ASSETS[fromAsset].precision,
+  });
+  const fmtTo = toAmount.toLocaleString("en-US", {
+    maximumFractionDigits: ASSETS[toAsset].precision,
+  });
+
+  return {
+    ok: true,
+    message: `Cambiaste ${fmtFrom} ${fromAsset} por ${fmtTo} ${toAsset}`,
+  };
+}
+
+export type DepositResult =
+  | { ok: true; message: string }
+  | { ok: false; error: string }
+  | undefined;
+
+const DEPOSIT_METHODS = new Set(["bank", "card", "crypto"]);
+
+export async function depositAction(
+  _prev: DepositResult,
+  formData: FormData
+): Promise<DepositResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "No autenticado" };
+
+  const asset = String(formData.get("asset") ?? "");
+  const amountRaw = String(formData.get("amount") ?? "");
+  const method = String(formData.get("method") ?? "bank");
+  const amount = Number(amountRaw);
+
+  if (!isAssetSymbol(asset)) return { ok: false, error: "Activo inválido" };
+  if (!DEPOSIT_METHODS.has(method))
+    return { ok: false, error: "Método inválido" };
+  if (!Number.isFinite(amount) || amount <= 0)
+    return { ok: false, error: "Monto inválido" };
+  if (amount > 1_000_000)
+    return { ok: false, error: "Monto excede el límite de la demo" };
+
+  await prisma.$transaction([
+    prisma.balance.upsert({
+      where: { userId_asset: { userId: user.id, asset } },
+      update: { amount: { increment: amount } },
+      create: { userId: user.id, asset, amount },
+    }),
+    prisma.transaction.create({
+      data: {
+        userId: user.id,
+        type: "deposit",
+        toAsset: asset,
+        toAmount: amount,
+        status: "completed",
+        description: `Depósito demo · ${method}`,
+      },
+    }),
+  ]);
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/deposit");
+  revalidatePath("/dashboard/history");
+
+  const fmt = amount.toLocaleString("en-US", {
+    maximumFractionDigits: ASSETS[asset].precision,
+  });
+
+  return {
+    ok: true,
+    message: `Acreditado ${fmt} ${asset} a tu cuenta`,
+  };
+}
+
+export type CardActionResult =
+  | { ok: true; message: string }
+  | { ok: false; error: string }
+  | undefined;
+
+export type CardRequestResult =
+  | { ok: true; message: string; last4: string }
+  | { ok: false; error: string }
+  | undefined;
+
+function generateDemoPan(): { pan: string; last4: string; cvv: string } {
+  const middle = Array.from({ length: 8 }, () =>
+    Math.floor(Math.random() * 10)
+  ).join("");
+  const last4 = Array.from({ length: 4 }, () =>
+    Math.floor(Math.random() * 10)
+  ).join("");
+  const cvv = String(Math.floor(100 + Math.random() * 900));
+  return { pan: `4242${middle}${last4}`, last4, cvv };
+}
+
+export async function requestCardAction(
+  _prev: CardRequestResult,
+  _formData: FormData
+): Promise<CardRequestResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "No autenticado" };
+
+  const existing = await prisma.card.findFirst({
+    where: { userId: user.id },
+    select: { id: true },
+  });
+  if (existing) {
+    return { ok: false, error: "Ya tienes una tarjeta emitida" };
+  }
+
+  const usdBalance =
+    user.balances.find((b) => b.asset === "USD")?.amount ?? 0;
+  if (usdBalance < MIN_USD_FOR_CARD) {
+    return {
+      ok: false,
+      error: `Saldo USD insuficiente · necesitas al menos $${MIN_USD_FOR_CARD}`,
+    };
+  }
+
+  const { pan, last4, cvv } = generateDemoPan();
+  const holderName = (user.name ?? user.email.split("@")[0])
+    .toUpperCase()
+    .slice(0, 26);
+
+  await prisma.card.create({
+    data: {
+      userId: user.id,
+      type: "virtual",
+      status: "active",
+      pan,
+      last4,
+      expMonth: 12,
+      expYear: new Date().getFullYear() + 4,
+      cvv,
+      holderName,
+      spendingSource: "USD",
+      monthlyLimit: 2000,
+    },
+  });
+
+  revalidatePath("/dashboard/card");
+  revalidatePath("/dashboard");
+
+  return { ok: true, message: "Tarjeta emitida", last4 };
+}
+
+async function getOwnedCard(cardId: string) {
+  const session = await getSession();
+  if (!session.userId) return null;
+  const card = await prisma.card.findFirst({
+    where: { id: cardId, userId: session.userId },
+  });
+  return card;
+}
+
+export async function toggleFreezeAction(cardId: string) {
+  const card = await getOwnedCard(cardId);
+  if (!card) return;
+  await prisma.card.update({
+    where: { id: card.id },
+    data: { status: card.status === "frozen" ? "active" : "frozen" },
+  });
+  revalidatePath("/dashboard/card");
+}
+
+export async function setSpendingSourceAction(cardId: string, asset: string) {
+  const card = await getOwnedCard(cardId);
+  if (!card) return;
+  if (!isAssetSymbol(asset)) return;
+  await prisma.card.update({
+    where: { id: card.id },
+    data: { spendingSource: asset },
+  });
+  revalidatePath("/dashboard/card");
+}
+
+export async function requestPhysicalAction(cardId: string) {
+  const card = await getOwnedCard(cardId);
+  if (!card) return;
+  await prisma.card.update({
+    where: { id: card.id },
+    data: { physicalRequested: !card.physicalRequested },
+  });
+  revalidatePath("/dashboard/card");
+}
+
+export async function simulatePurchaseAction(
+  _prev: CardActionResult,
+  formData: FormData
+): Promise<CardActionResult> {
+  const cardId = String(formData.get("cardId") ?? "");
+  const merchant = String(formData.get("merchant") ?? "").trim();
+  const category = String(formData.get("category") ?? "other");
+  const amountRaw = String(formData.get("amount") ?? "");
+  const amountUsd = Number(amountRaw);
+
+  const card = await getOwnedCard(cardId);
+  if (!card) return { ok: false, error: "Tarjeta no encontrada" };
+  if (card.status === "frozen")
+    return { ok: false, error: "Tarjeta congelada" };
+  if (!merchant) return { ok: false, error: "Falta el comercio" };
+  if (!Number.isFinite(amountUsd) || amountUsd <= 0)
+    return { ok: false, error: "Monto inválido" };
+
+  const source = card.spendingSource as AssetSymbol;
+  if (!isAssetSymbol(source))
+    return { ok: false, error: "Fuente de gasto inválida" };
+
+  const prices = await fetchPrices();
+  const sourcePrice = prices[source]?.usd ?? 0;
+  if (sourcePrice <= 0) return { ok: false, error: "Precio no disponible" };
+
+  const sourceAmount = amountUsd / sourcePrice;
+  const balance = await prisma.balance.findUnique({
+    where: { userId_asset: { userId: card.userId, asset: source } },
+  });
+
+  if (!balance || balance.amount < sourceAmount) {
+    await prisma.cardTransaction.create({
+      data: {
+        cardId: card.id,
+        merchant,
+        category,
+        amountUsd,
+        sourceAsset: source,
+        sourceAmount,
+        rate: 1 / sourcePrice,
+        status: "declined",
+      },
+    });
+    revalidatePath("/dashboard/card");
+    revalidatePath("/dashboard/history");
+    return { ok: false, error: "Pago declinado — saldo insuficiente" };
+  }
+
+  await prisma.$transaction([
+    prisma.balance.update({
+      where: { userId_asset: { userId: card.userId, asset: source } },
+      data: { amount: { decrement: sourceAmount } },
+    }),
+    prisma.cardTransaction.create({
+      data: {
+        cardId: card.id,
+        merchant,
+        category,
+        amountUsd,
+        sourceAsset: source,
+        sourceAmount,
+        rate: 1 / sourcePrice,
+        status: "approved",
+      },
+    }),
+  ]);
+
+  revalidatePath("/dashboard/card");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/history");
+
+  return {
+    ok: true,
+    message: `${merchant} cargó $${amountUsd.toFixed(2)}`,
+  };
+}
+
+export type BuyTicketsResult =
+  | { ok: true; message: string; tickets: number }
+  | { ok: false; error: string }
+  | undefined;
+
+const MAX_TICKETS_PER_PURCHASE = 500;
+
+export async function buyTicketsAction(
+  _prev: BuyTicketsResult,
+  formData: FormData
+): Promise<BuyTicketsResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "No autenticado" };
+
+  const ticketsRaw = String(formData.get("tickets") ?? "");
+  const tickets = Math.floor(Number(ticketsRaw));
+  if (!Number.isFinite(tickets) || tickets <= 0) {
+    return { ok: false, error: "Cantidad de tickets inválida" };
+  }
+  if (tickets > MAX_TICKETS_PER_PURCHASE) {
+    return {
+      ok: false,
+      error: `Máximo ${MAX_TICKETS_PER_PURCHASE} tickets por compra`,
+    };
+  }
+
+  const round = await getOrCreateCurrentRound();
+  if (round.status !== "open") {
+    return { ok: false, error: "La ronda actual ya está cerrada" };
+  }
+  if (round.drawsAt.getTime() <= Date.now()) {
+    return { ok: false, error: "Esta ronda ya venció — realiza el sorteo" };
+  }
+
+  const costUsd = tickets * round.ticketPriceUsd;
+  const usdBalance = user.balances.find((b) => b.asset === "USD");
+  if (!usdBalance || usdBalance.amount < costUsd) {
+    return {
+      ok: false,
+      error: `Saldo USD insuficiente · necesitas $${costUsd.toFixed(2)}`,
+    };
+  }
+
+  await prisma.$transaction([
+    prisma.balance.update({
+      where: { userId_asset: { userId: user.id, asset: "USD" } },
+      data: { amount: { decrement: costUsd } },
+    }),
+    prisma.raffleEntry.upsert({
+      where: { roundId_userId: { roundId: round.id, userId: user.id } },
+      update: {
+        tickets: { increment: tickets },
+        spentUsd: { increment: costUsd },
+      },
+      create: {
+        roundId: round.id,
+        userId: user.id,
+        tickets,
+        spentUsd: costUsd,
+      },
+    }),
+    prisma.transaction.create({
+      data: {
+        userId: user.id,
+        type: "raffle_buy",
+        fromAsset: "USD",
+        fromAmount: costUsd,
+        status: "completed",
+        description: `${tickets} ticket${tickets === 1 ? "" : "s"} de rifa`,
+      },
+    }),
+  ]);
+
+  revalidatePath("/dashboard/raffle");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/history");
+
+  return {
+    ok: true,
+    message: `Compraste ${tickets} ticket${tickets === 1 ? "" : "s"}`,
+    tickets,
+  };
+}
+
+export type DrawRaffleResult =
+  | {
+      ok: true;
+      won: boolean;
+      winnerLabel: string;
+      winningIndex: number;
+      totalTickets: number;
+      prizeBtc: number;
+    }
+  | { ok: false; error: string }
+  | undefined;
+
+export async function drawRaffleAction(
+  _prev: DrawRaffleResult,
+  formData: FormData
+): Promise<DrawRaffleResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "No autenticado" };
+
+  const roundId = String(formData.get("roundId") ?? "");
+  if (!roundId) return { ok: false, error: "Ronda no especificada" };
+
+  const round = await prisma.raffleRound.findUnique({
+    where: { id: roundId },
+    include: { entries: true },
+  });
+  if (!round) return { ok: false, error: "Ronda no encontrada" };
+  if (round.status !== "open") {
+    return { ok: false, error: "Esta ronda ya fue sorteada" };
+  }
+  if (round.drawsAt.getTime() > Date.now()) {
+    return { ok: false, error: "Aún no ha llegado la fecha del sorteo" };
+  }
+
+  const result = pickWinner(
+    round.entries.map((e) => ({ userId: e.userId, tickets: e.tickets })),
+    round.syntheticTickets
+  );
+
+  const writes: Prisma.PrismaPromise<unknown>[] = [];
+
+  if (result.kind === "user") {
+    writes.push(
+      prisma.balance.upsert({
+        where: {
+          userId_asset: { userId: result.userId, asset: "BTC" },
+        },
+        update: { amount: { increment: round.prizeBtc } },
+        create: {
+          userId: result.userId,
+          asset: "BTC",
+          amount: round.prizeBtc,
+        },
+      }),
+      prisma.transaction.create({
+        data: {
+          userId: result.userId,
+          type: "raffle_win",
+          toAsset: "BTC",
+          toAmount: round.prizeBtc,
+          status: "completed",
+          description: `Premio rifa · ${round.prizeBtc} BTC`,
+        },
+      })
+    );
+  }
+
+  writes.push(
+    prisma.raffleRound.update({
+      where: { id: round.id },
+      data: {
+        status: "drawn",
+        drawnAt: new Date(),
+        winnerUserId: result.kind === "user" ? result.userId : null,
+        winnerHandle: result.kind === "synthetic" ? result.handle : null,
+        winnerTickets:
+          result.kind === "user" ? result.userTickets : round.syntheticTickets,
+        totalTicketsAtDraw: result.totalTickets,
+      },
+    }),
+    prisma.raffleRound.create({
+      data: {
+        drawsAt: nextDrawDate(new Date()),
+        prizeBtc: round.prizeBtc,
+        ticketPriceUsd: round.ticketPriceUsd,
+        syntheticTickets:
+          Math.floor(2000 + Math.random() * 6000),
+        status: "open",
+      },
+    })
+  );
+
+  await prisma.$transaction(writes);
+
+  let winnerLabel: string;
+  if (result.kind === "user") {
+    const winner = await prisma.user.findUnique({
+      where: { id: result.userId },
+      select: { name: true, email: true },
+    });
+    winnerLabel = winner?.name ?? winner?.email ?? "Usuario";
+  } else {
+    winnerLabel = result.handle;
+  }
+
+  revalidatePath("/dashboard/raffle");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/history");
+
+  return {
+    ok: true,
+    won: result.kind === "user" && result.userId === user.id,
+    winnerLabel,
+    winningIndex: result.winningIndex,
+    totalTickets: result.totalTickets,
+    prizeBtc: round.prizeBtc,
+  };
+}
+
+export async function fastForwardRaffleAction() {
+  const user = await getCurrentUser();
+  if (!user) return;
+
+  const open = await prisma.raffleRound.findFirst({
+    where: { status: "open" },
+    orderBy: { drawsAt: "asc" },
+  });
+  if (!open) return;
+
+  await prisma.raffleRound.update({
+    where: { id: open.id },
+    data: { drawsAt: new Date(Date.now() - 1000) },
+  });
+
+  revalidatePath("/dashboard/raffle");
+  revalidatePath("/");
+}
+
+export type AdminToggleResult =
+  | { ok: true; userId: string; isAdmin: boolean }
+  | { ok: false; error: string }
+  | undefined;
+
+export async function setUserAdminAction(
+  _prev: AdminToggleResult,
+  formData: FormData
+): Promise<AdminToggleResult> {
+  const me = await getCurrentUser();
+  if (!me) return { ok: false, error: "No autenticado" };
+  if (!me.isAdmin) return { ok: false, error: "Sin permisos" };
+
+  const userId = String(formData.get("userId") ?? "");
+  const makeAdmin = String(formData.get("makeAdmin") ?? "") === "true";
+
+  if (!userId) return { ok: false, error: "userId requerido" };
+  if (userId === me.id) {
+    return { ok: false, error: "No puedes cambiar tu propio rol admin" };
+  }
+
+  const target = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true },
+  });
+  if (!target) return { ok: false, error: "Usuario no encontrado" };
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { isAdmin: makeAdmin },
+  });
+
+  revalidatePath("/dashboard/admin");
+
+  return { ok: true, userId, isAdmin: makeAdmin };
+}
