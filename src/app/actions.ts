@@ -15,6 +15,12 @@ import {
   pickWinner,
 } from "@/lib/raffle";
 import { MIN_USD_FOR_CARD } from "@/lib/cards";
+import {
+  generateTxHash,
+  isCryptoAsset,
+  isValidAddress,
+  shortenAddress,
+} from "@/lib/addresses";
 
 export type AuthResult = { error: string } | undefined;
 export type SwapResult =
@@ -193,6 +199,82 @@ export async function swapAction(
   return {
     ok: true,
     message: `Cambiaste ${fmtFrom} ${fromAsset} por ${fmtTo} ${toAsset}`,
+  };
+}
+
+export type SendResult =
+  | { ok: true; message: string; txHash: string; asset: string; amount: number; address: string }
+  | { ok: false; error: string }
+  | undefined;
+
+export async function sendCryptoAction(
+  _prev: SendResult,
+  formData: FormData
+): Promise<SendResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "No autenticado" };
+
+  const asset = String(formData.get("asset") ?? "");
+  const address = String(formData.get("address") ?? "").trim();
+  const amountRaw = String(formData.get("amount") ?? "");
+  const amount = Number(amountRaw);
+
+  if (!isCryptoAsset(asset)) {
+    return { ok: false, error: "Activo no enviable. Elige una criptomoneda." };
+  }
+  if (!isValidAddress(asset, address)) {
+    return {
+      ok: false,
+      error: `Dirección ${asset} no válida. Revisa el formato.`,
+    };
+  }
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { ok: false, error: "Monto inválido" };
+  }
+
+  const balance = user.balances.find((b) => b.asset === asset);
+  if (!balance || balance.amount < amount) {
+    return {
+      ok: false,
+      error: `Saldo ${asset} insuficiente`,
+    };
+  }
+
+  const txHash = generateTxHash(asset);
+  const shortAddr = shortenAddress(address);
+
+  await prisma.$transaction([
+    prisma.balance.update({
+      where: { userId_asset: { userId: user.id, asset } },
+      data: { amount: { decrement: amount } },
+    }),
+    prisma.transaction.create({
+      data: {
+        userId: user.id,
+        type: "send",
+        fromAsset: asset,
+        fromAmount: amount,
+        status: "completed",
+        description: `Envío a ${shortAddr} · ${txHash.slice(0, 10)}…`,
+      },
+    }),
+  ]);
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/send");
+  revalidatePath("/dashboard/history");
+
+  const fmt = amount.toLocaleString("en-US", {
+    maximumFractionDigits: ASSETS[asset].precision,
+  });
+
+  return {
+    ok: true,
+    message: `Enviado ${fmt} ${asset} a ${shortAddr}`,
+    txHash,
+    asset,
+    amount,
+    address,
   };
 }
 

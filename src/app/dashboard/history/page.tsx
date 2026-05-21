@@ -8,12 +8,13 @@ import {
   type AssetSymbol,
 } from "@/lib/assets";
 
-type Filter = "all" | "swap" | "deposito" | "tarjeta";
+type Filter = "all" | "swap" | "deposito" | "envio" | "tarjeta";
 
 const FILTERS: { key: Filter; label: string }[] = [
   { key: "all", label: "Todo" },
   { key: "swap", label: "Swaps" },
   { key: "deposito", label: "Depósitos" },
+  { key: "envio", label: "Envíos" },
   { key: "tarjeta", label: "Tarjeta" },
 ];
 
@@ -36,6 +37,15 @@ type TimelineEntry =
       status: string;
       toAsset: AssetSymbol;
       toAmount: number;
+      description: string | null;
+    }
+  | {
+      kind: "send";
+      id: string;
+      at: Date;
+      status: string;
+      fromAsset: AssetSymbol;
+      fromAmount: number;
       description: string | null;
     }
   | {
@@ -67,11 +77,12 @@ export default async function HistoryPage({
             userId: user.id,
             ...(filter === "swap" && { type: "swap" }),
             ...(filter === "deposito" && { type: "deposit" }),
+            ...(filter === "envio" && { type: "send" }),
           },
           orderBy: { createdAt: "desc" },
           take: 200,
         }),
-    filter === "swap" || filter === "deposito"
+    filter === "swap" || filter === "deposito" || filter === "envio"
       ? Promise.resolve([])
       : prisma.cardTransaction.findMany({
           where: { card: { userId: user.id } },
@@ -105,6 +116,16 @@ export default async function HistoryPage({
         toAmount: t.toAmount,
         description: t.description,
       });
+    } else if (t.type === "send" && t.fromAsset && t.fromAmount) {
+      entries.push({
+        kind: "send",
+        id: t.id,
+        at: t.createdAt,
+        status: t.status,
+        fromAsset: t.fromAsset as AssetSymbol,
+        fromAmount: t.fromAmount,
+        description: t.description,
+      });
     }
   }
   for (const c of cardTxs) {
@@ -128,6 +149,7 @@ export default async function HistoryPage({
     all: entries.length,
     swap: entries.filter((e) => e.kind === "swap").length,
     deposito: entries.filter((e) => e.kind === "deposit").length,
+    envio: entries.filter((e) => e.kind === "send").length,
     tarjeta: entries.filter((e) => e.kind === "card").length,
   };
 
@@ -191,7 +213,13 @@ export default async function HistoryPage({
 }
 
 function isFilter(v: string | undefined): v is Filter {
-  return v === "swap" || v === "deposito" || v === "tarjeta" || v === "all";
+  return (
+    v === "swap" ||
+    v === "deposito" ||
+    v === "envio" ||
+    v === "tarjeta" ||
+    v === "all"
+  );
 }
 
 function groupByDay(entries: TimelineEntry[]): [string, TimelineEntry[]][] {
@@ -279,6 +307,24 @@ function EntryRow({ entry }: { entry: TimelineEntry }) {
           <span className="font-mono text-emerald-300">
             +{formatAmount(entry.toAmount, entry.toAsset)}{" "}
             <span className="text-emerald-300/60">{entry.toAsset}</span>
+          </span>
+        }
+        status={failed ? "fail" : "ok"}
+      />
+    );
+  }
+
+  if (entry.kind === "send") {
+    return (
+      <Row
+        time={time}
+        icon={<TypeIcon symbol="↑" tint="#f472b6" />}
+        title={<>Envío {entry.fromAsset}</>}
+        subtitle={entry.description ?? `Salida de ${entry.fromAsset}`}
+        amount={
+          <span className="font-mono text-pink-300">
+            −{formatAmount(entry.fromAmount, entry.fromAsset)}{" "}
+            <span className="text-pink-300/60">{entry.fromAsset}</span>
           </span>
         }
         status={failed ? "fail" : "ok"}
@@ -387,6 +433,11 @@ function EmptyState({ filter }: { filter: Filter }) {
       title: "Sin depósitos",
       sub: "Añade fondos a tu cuenta para empezar a operar.",
       cta: { href: "/dashboard/deposit", label: "Depositar" },
+    },
+    envio: {
+      title: "Sin envíos",
+      sub: "Transfiere cripto a una wallet externa.",
+      cta: { href: "/dashboard/send", label: "Enviar cripto" },
     },
     tarjeta: {
       title: "Sin compras con tarjeta",

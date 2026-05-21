@@ -14,6 +14,7 @@ const baseNavItems: NavItem[] = [
   { href: "/dashboard", label: "Resumen" },
   { href: "/dashboard/markets", label: "Mercados", soon: true },
   { href: "/dashboard/swap", label: "Swap" },
+  { href: "/dashboard/send", label: "Enviar" },
   { href: "/dashboard/card", label: "Tarjeta" },
   { href: "/dashboard/raffle", label: "Rifa", highlight: true },
   { href: "/dashboard/history", label: "Historial" },

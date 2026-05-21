@@ -163,7 +163,7 @@ export function LiveDashboard({ balances, initialPrices, kycStatus }: Props) {
               <span className="text-zinc-500 text-xs font-mono">24h</span>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Link
               href="/dashboard/deposit"
               className="h-10 inline-flex items-center px-5 rounded-full bg-white text-black text-sm font-medium hover:bg-zinc-200 transition-colors"
@@ -175,6 +175,12 @@ export function LiveDashboard({ balances, initialPrices, kycStatus }: Props) {
               className="h-10 inline-flex items-center px-5 rounded-full border border-white/15 text-sm font-medium hover:bg-white/[0.04] transition-colors"
             >
               Swap
+            </Link>
+            <Link
+              href="/dashboard/send"
+              className="h-10 inline-flex items-center px-5 rounded-full border border-white/15 text-sm font-medium hover:bg-white/[0.04] transition-colors"
+            >
+              Enviar
             </Link>
           </div>
         </div>
