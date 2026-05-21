@@ -6,6 +6,7 @@ import { CardVisual } from "./CardVisual";
 import { CardControls } from "./CardControls";
 import { SimulatePurchase } from "./SimulatePurchase";
 import { CardRequestLanding } from "./CardRequestLanding";
+import { WalletButtons } from "./WalletButtons";
 
 export default async function CardPage() {
   const user = await requireUser();
@@ -62,7 +63,10 @@ export default async function CardPage() {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-8">
-        <CardVisual card={card} />
+        <div className="space-y-6">
+          <CardVisual card={card} />
+          <WalletButtons last4={card.last4} />
+        </div>
         <CardControls
           card={card}
           assets={ASSET_LIST}
