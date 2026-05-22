@@ -7,6 +7,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import { NotificationBell } from "./NotificationBell";
 import { OnboardingTour } from "./OnboardingTour";
 import { CommandPalette } from "./CommandPalette";
+import { ImpersonationBanner } from "./ImpersonationBanner";
 import { getTheme } from "@/lib/theme";
 
 const baseNavItems: NavItem[] = [
@@ -111,6 +112,7 @@ export default async function DashboardLayout({
         </div>
       </header>
 
+      <ImpersonationBanner />
       <main className="relative z-10 flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 py-8 sm:py-10">
         {children}
       </main>

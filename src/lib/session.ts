@@ -5,6 +5,10 @@ export type SessionData = {
   userId?: string;
   email?: string;
   isDemo?: boolean;
+  // When admin uses "login as user", we keep their original userId here so
+  // we can restore the original session with a single click.
+  impersonatedBy?: string;
+  impersonatedByEmail?: string;
 };
 
 const sessionPassword = process.env.SESSION_SECRET;

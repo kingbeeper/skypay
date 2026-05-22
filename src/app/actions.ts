@@ -24,6 +24,7 @@ import {
 import { setThemeCookie, type Theme } from "@/lib/theme";
 import { notify } from "@/lib/notifications";
 import { generateTotpSecret, totpUri, verifyTotp } from "@/lib/totp";
+import { logAudit } from "@/lib/audit";
 
 export type AuthResult = { error: string } | undefined;
 export type SwapResult =
@@ -1073,6 +1074,15 @@ export async function createUserAction(
     },
   });
 
+  await logAudit({
+    actorId: me.id,
+    actorEmail: me.email,
+    action: "user.create",
+    targetId: user.id,
+    targetLabel: user.email,
+    metadata: { isDemo, isAdmin, initialUsd },
+  });
+
   revalidatePath("/dashboard/admin");
 
   return {
@@ -1148,6 +1158,14 @@ export async function adjustBalanceAction(
     title: `Tu balance fue ajustado por admin`,
     body: `${delta >= 0 ? "+" : "−"}${Math.abs(delta)} ${asset}${reason ? ` · ${reason}` : ""}`,
   });
+  await logAudit({
+    actorId: me.id,
+    actorEmail: me.email,
+    action: "balance.adjust",
+    targetId: userId,
+    targetLabel: target.email,
+    metadata: { asset, delta, reason: reason || null, newAmount: next },
+  });
 
   revalidatePath(`/dashboard/admin/users/${userId}`);
   revalidatePath("/dashboard/admin");
@@ -1202,6 +1220,14 @@ export async function deleteUserAction(
     }),
     prisma.user.delete({ where: { id: userId } }),
   ]);
+
+  await logAudit({
+    actorId: me.id,
+    actorEmail: me.email,
+    action: "user.delete",
+    targetId: target.id,
+    targetLabel: target.email,
+  });
 
   revalidatePath("/dashboard/admin");
 
@@ -1697,6 +1723,77 @@ export async function fireTestWebhookAction(
   return { ok: true, status };
 }
 
+// ----- Admin impersonation -----
+
+export async function impersonateUserAction(formData: FormData) {
+  const me = await getCurrentUser();
+  if (!me || !me.isAdmin) return;
+
+  const userId = String(formData.get("userId") ?? "");
+  if (!userId || userId === me.id) return;
+
+  const target = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true, isDemo: true },
+  });
+  if (!target) return;
+
+  const session = await getSession();
+  session.userId = target.id;
+  session.email = target.email;
+  session.isDemo = target.isDemo;
+  session.impersonatedBy = me.id;
+  session.impersonatedByEmail = me.email;
+  await session.save();
+
+  await logAudit({
+    actorId: me.id,
+    actorEmail: me.email,
+    action: "impersonate.start",
+    targetId: target.id,
+    targetLabel: target.email,
+  });
+
+  redirect("/dashboard");
+}
+
+export async function stopImpersonatingAction() {
+  const session = await getSession();
+  const originalAdminId = session.impersonatedBy;
+  const originalAdminEmail = session.impersonatedByEmail;
+  if (!originalAdminId) {
+    redirect("/dashboard");
+  }
+
+  const admin = await prisma.user.findUnique({
+    where: { id: originalAdminId },
+  });
+  if (!admin) {
+    session.destroy();
+    redirect("/login");
+  }
+
+  await logAudit({
+    actorId: admin.id,
+    actorEmail: admin.email,
+    action: "impersonate.stop",
+    targetId: session.userId ?? null,
+    targetLabel: session.email ?? null,
+  });
+
+  session.userId = admin.id;
+  session.email = admin.email;
+  session.isDemo = admin.isDemo;
+  session.impersonatedBy = undefined;
+  session.impersonatedByEmail = undefined;
+  await session.save();
+
+  // Suppress unused warning — could be exposed in UI later
+  void originalAdminEmail;
+
+  redirect("/dashboard/admin");
+}
+
 export async function adminForceDrawAction() {
   const me = await getCurrentUser();
   if (!me || !me.isAdmin) return;
@@ -1749,6 +1846,12 @@ export async function setUserAdminAction(
   await prisma.user.update({
     where: { id: userId },
     data: { isAdmin: makeAdmin },
+  });
+  await logAudit({
+    actorId: me.id,
+    actorEmail: me.email,
+    action: makeAdmin ? "user.promote_admin" : "user.demote_admin",
+    targetId: userId,
   });
 
   revalidatePath("/dashboard/admin");

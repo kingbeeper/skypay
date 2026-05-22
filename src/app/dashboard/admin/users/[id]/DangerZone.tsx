@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useState } from "react";
 import {
   deleteUserAction,
+  impersonateUserAction,
   type DeleteUserResult,
 } from "@/app/actions";
 
@@ -29,7 +30,34 @@ export function DangerZone({ userId, userEmail, isSelf }: Props) {
   }, [state, router]);
 
   return (
-    <section>
+    <section className="space-y-6">
+      {!isSelf && (
+        <div className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.03] p-5">
+          <div className="flex items-start gap-3">
+            <span className="inline-flex h-9 w-9 shrink-0 rounded-full items-center justify-center font-mono text-sm bg-amber-400/[0.15] text-amber-300">
+              👤
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="font-medium">Login as this user</div>
+              <div className="text-xs text-zinc-500 mt-0.5">
+                Continúa la sesión como este usuario para debug. Queda
+                registrado en el audit log. Podrás volver a tu cuenta cuando
+                quieras.
+              </div>
+            </div>
+            <form action={impersonateUserAction}>
+              <input type="hidden" name="userId" value={userId} />
+              <button
+                type="submit"
+                className="h-9 px-4 rounded-full border border-amber-500/40 bg-amber-500/[0.08] text-amber-200 text-sm font-medium hover:bg-amber-500/[0.16] transition-colors"
+              >
+                Login as user →
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       <h2 className="text-xl font-semibold tracking-tight mb-1 text-rose-300">
         Zona peligrosa
       </h2>

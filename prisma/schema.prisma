@@ -83,6 +83,20 @@ model Webhook {
   events      WebhookEvent[]
 }
 
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String
+  actorEmail String
+  action    String
+  targetId  String?
+  targetLabel String?
+  metadata  String?
+  createdAt DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+}
+
 model WebhookEvent {
   id        String   @id @default(cuid())
   webhookId String
