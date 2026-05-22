@@ -5,6 +5,7 @@ import { PasswordForm } from "./PasswordForm";
 import { ThemePreference } from "./ThemePreference";
 import { DeleteAccount } from "./DeleteAccount";
 import { TwoFactor } from "./TwoFactor";
+import { ReplayTourButton } from "./ReplayTourButton";
 
 export default async function SettingsPage() {
   const user = await requireUser();
@@ -48,6 +49,13 @@ export default async function SettingsPage() {
         subtitle="Pide un código del autenticador al iniciar sesión, además de la contraseña."
       >
         <TwoFactor enabled={user.totpEnabled} />
+      </Section>
+
+      <Section
+        title="Tour de bienvenida"
+        subtitle="Vuelve a ver el tour interactivo de 5 pasos que se muestra en la primera visita."
+      >
+        <ReplayTourButton />
       </Section>
 
       <Section
