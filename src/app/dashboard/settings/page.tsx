@@ -4,6 +4,7 @@ import { NameForm } from "./NameForm";
 import { PasswordForm } from "./PasswordForm";
 import { ThemePreference } from "./ThemePreference";
 import { DeleteAccount } from "./DeleteAccount";
+import { TwoFactor } from "./TwoFactor";
 
 export default async function SettingsPage() {
   const user = await requireUser();
@@ -40,6 +41,13 @@ export default async function SettingsPage() {
         subtitle="Cambia tu contraseña. Las sesiones existentes seguirán activas."
       >
         <PasswordForm />
+      </Section>
+
+      <Section
+        title="Autenticación 2FA"
+        subtitle="Pide un código del autenticador al iniciar sesión, además de la contraseña."
+      >
+        <TwoFactor enabled={user.totpEnabled} />
       </Section>
 
       <Section

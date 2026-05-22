@@ -14,6 +14,8 @@ model User {
   kycStatus     String        @default("approved")
   isDemo        Boolean       @default(false)
   isAdmin       Boolean       @default(false)
+  totpSecret    String?
+  totpEnabled   Boolean       @default(false)
   createdAt     DateTime      @default(now())
   balances      Balance[]
   transactions  Transaction[]

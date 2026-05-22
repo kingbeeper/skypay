@@ -23,6 +23,7 @@ import {
 } from "@/lib/addresses";
 import { setThemeCookie, type Theme } from "@/lib/theme";
 import { notify } from "@/lib/notifications";
+import { generateTotpSecret, totpUri, verifyTotp } from "@/lib/totp";
 
 export type AuthResult = { error: string } | undefined;
 export type SwapResult =
@@ -73,12 +74,18 @@ export async function signupAction(
   redirect("/dashboard");
 }
 
+export type LoginActionResult =
+  | { error: string }
+  | { totpRequired: true; email: string }
+  | undefined;
+
 export async function loginAction(
-  _prev: AuthResult,
+  _prev: LoginActionResult,
   formData: FormData
-): Promise<AuthResult> {
+): Promise<LoginActionResult> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
+  const totpToken = String(formData.get("totpToken") ?? "").replace(/\s/g, "");
 
   if (!email || !password) return { error: "Faltan campos" };
 
@@ -87,6 +94,18 @@ export async function loginAction(
 
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) return { error: "Credenciales inválidas" };
+
+  if (user.totpEnabled && user.totpSecret) {
+    if (!totpToken) {
+      return { totpRequired: true, email: user.email };
+    }
+    if (!/^\d{6}$/.test(totpToken)) {
+      return { error: "Código 2FA inválido (6 dígitos)" };
+    }
+    if (!verifyTotp(user.totpSecret, totpToken)) {
+      return { error: "Código 2FA incorrecto" };
+    }
+  }
 
   const session = await getSession();
   session.userId = user.id;
@@ -986,6 +1005,109 @@ export async function deleteUserAction(
   revalidatePath("/dashboard/admin");
 
   return { ok: true, email: target.email };
+}
+
+export type TotpStartResult =
+  | { ok: true; secret: string; otpauth: string }
+  | { ok: false; error: string };
+
+export async function startTotpSetupAction(): Promise<TotpStartResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "No autenticado" };
+  if (user.totpEnabled) return { ok: false, error: "2FA ya está activado" };
+
+  const secret = generateTotpSecret();
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { totpSecret: secret, totpEnabled: false },
+  });
+
+  return {
+    ok: true,
+    secret,
+    otpauth: totpUri(secret, user.email),
+  };
+}
+
+export type TotpVerifyResult =
+  | { ok: true }
+  | { ok: false; error: string }
+  | undefined;
+
+export async function verifyTotpSetupAction(
+  _prev: TotpVerifyResult,
+  formData: FormData
+): Promise<TotpVerifyResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "No autenticado" };
+  if (!user.totpSecret) {
+    return { ok: false, error: "Inicia primero la configuración de 2FA" };
+  }
+  if (user.totpEnabled) return { ok: false, error: "2FA ya está activado" };
+
+  const token = String(formData.get("token") ?? "").replace(/\s/g, "");
+  if (!/^\d{6}$/.test(token)) {
+    return { ok: false, error: "Código inválido (deben ser 6 dígitos)" };
+  }
+  if (!verifyTotp(user.totpSecret, token)) {
+    return { ok: false, error: "Código incorrecto. Verifica el reloj del autenticador" };
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { totpEnabled: true },
+  });
+
+  await notify({
+    userId: user.id,
+    type: "security",
+    title: "2FA activado",
+    body: "A partir de ahora se te pedirá un código al iniciar sesión.",
+    link: "/dashboard/settings",
+  });
+
+  revalidatePath("/dashboard/settings");
+  return { ok: true };
+}
+
+export type TotpDisableResult =
+  | { ok: true }
+  | { ok: false; error: string }
+  | undefined;
+
+export async function disableTotpAction(
+  _prev: TotpDisableResult,
+  formData: FormData
+): Promise<TotpDisableResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "No autenticado" };
+  if (!user.totpEnabled || !user.totpSecret) {
+    return { ok: false, error: "2FA no está activado" };
+  }
+
+  const token = String(formData.get("token") ?? "").replace(/\s/g, "");
+  if (!/^\d{6}$/.test(token)) {
+    return { ok: false, error: "Introduce un código 2FA válido para confirmar" };
+  }
+  if (!verifyTotp(user.totpSecret, token)) {
+    return { ok: false, error: "Código incorrecto" };
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { totpEnabled: false, totpSecret: null },
+  });
+
+  await notify({
+    userId: user.id,
+    type: "security",
+    title: "2FA desactivado",
+    body: "Tu cuenta ya no requiere código 2FA al iniciar sesión.",
+    link: "/dashboard/settings",
+  });
+
+  revalidatePath("/dashboard/settings");
+  return { ok: true };
 }
 
 export async function markNotificationReadAction(id: string) {
