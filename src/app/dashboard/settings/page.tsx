@@ -6,6 +6,7 @@ import { ThemePreference } from "./ThemePreference";
 import { DeleteAccount } from "./DeleteAccount";
 import { TwoFactor } from "./TwoFactor";
 import { ReplayTourButton } from "./ReplayTourButton";
+import { RecoveryCodes } from "./RecoveryCodes";
 
 export default async function SettingsPage() {
   const user = await requireUser();
@@ -49,6 +50,55 @@ export default async function SettingsPage() {
         subtitle="Pide un código del autenticador al iniciar sesión, además de la contraseña."
       >
         <TwoFactor enabled={user.totpEnabled} />
+      </Section>
+
+      {user.totpEnabled && (
+        <Section
+          title="Códigos de recuperación"
+          subtitle="Plan B si pierdes el autenticador. Cada código se usa una sola vez."
+        >
+          <RecoveryCodes
+            available={
+              user.recoveryCodes
+                ? (JSON.parse(user.recoveryCodes) as string[]).length
+                : 0
+            }
+          />
+        </Section>
+      )}
+
+      <Section
+        title="Actividad"
+        subtitle="Información de tu sesión y racha de visitas."
+      >
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 grid grid-cols-2 gap-px bg-white/[0.06] -m-px overflow-hidden rounded-2xl">
+          <div className="bg-[color:var(--background)] p-4">
+            <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+              Racha de logins
+            </div>
+            <div className="mt-1 text-2xl font-semibold tracking-tight">
+              {user.streakDays}{" "}
+              <span className="text-sm font-mono text-zinc-500">
+                {user.streakDays === 1 ? "día" : "días"}
+              </span>
+            </div>
+          </div>
+          <div className="bg-[color:var(--background)] p-4">
+            <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-500">
+              Último login
+            </div>
+            <div className="mt-1 text-sm font-mono">
+              {user.lastLoginAt
+                ? new Date(user.lastLoginAt).toLocaleString("es-ES", {
+                    day: "2-digit",
+                    month: "short",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "—"}
+            </div>
+          </div>
+        </div>
       </Section>
 
       <Section

@@ -77,7 +77,22 @@ export async function signupAction(
 export type LoginActionResult =
   | { error: string }
   | { totpRequired: true; email: string }
+  | { locked: true; until: string }
   | undefined;
+
+const MAX_FAILED_LOGINS = 5;
+const LOCKOUT_MINUTES = 15;
+
+function computeStreak(prevLogin: Date | null): number {
+  if (!prevLogin) return 1;
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const prevDay = new Date(prevLogin.getFullYear(), prevLogin.getMonth(), prevLogin.getDate());
+  const diffDays = Math.round((startOfToday.getTime() - prevDay.getTime()) / 86_400_000);
+  if (diffDays === 0) return 0; // same day → no streak change (caller keeps current)
+  if (diffDays === 1) return 1; // consecutive day → +1
+  return -1; // streak broken → reset to 1
+}
 
 export async function loginAction(
   _prev: LoginActionResult,
@@ -86,26 +101,118 @@ export async function loginAction(
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
   const totpToken = String(formData.get("totpToken") ?? "").replace(/\s/g, "");
+  const recoveryCode = String(formData.get("recoveryCode") ?? "").trim().toLowerCase();
 
   if (!email || !password) return { error: "Faltan campos" };
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) return { error: "Credenciales inválidas" };
 
+  // Account lockout check
+  if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
+    return { locked: true, until: user.lockedUntil.toISOString() };
+  }
+
   const ok = await bcrypt.compare(password, user.passwordHash);
-  if (!ok) return { error: "Credenciales inválidas" };
+  if (!ok) {
+    const failed = user.failedLogins + 1;
+    const shouldLock = failed >= MAX_FAILED_LOGINS;
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        failedLogins: shouldLock ? 0 : failed,
+        lockedUntil: shouldLock
+          ? new Date(Date.now() + LOCKOUT_MINUTES * 60_000)
+          : null,
+      },
+    });
+    if (shouldLock) {
+      await notify({
+        userId: user.id,
+        type: "security",
+        title: "Cuenta bloqueada temporalmente",
+        body: `Demasiados intentos fallidos. Bloqueada ${LOCKOUT_MINUTES} min.`,
+        link: "/dashboard/settings",
+      });
+      return {
+        locked: true,
+        until: new Date(Date.now() + LOCKOUT_MINUTES * 60_000).toISOString(),
+      };
+    }
+    const remaining = MAX_FAILED_LOGINS - failed;
+    return {
+      error: `Credenciales inválidas (${remaining} ${remaining === 1 ? "intento restante" : "intentos restantes"})`,
+    };
+  }
 
   if (user.totpEnabled && user.totpSecret) {
-    if (!totpToken) {
+    // Allow either TOTP token OR a recovery code
+    if (!totpToken && !recoveryCode) {
       return { totpRequired: true, email: user.email };
     }
-    if (!/^\d{6}$/.test(totpToken)) {
-      return { error: "Código 2FA inválido (6 dígitos)" };
+    let verified = false;
+    let consumedRecovery: string | null = null;
+    if (totpToken) {
+      if (/^\d{6}$/.test(totpToken) && verifyTotp(user.totpSecret, totpToken)) {
+        verified = true;
+      }
+    } else if (recoveryCode) {
+      const codes: string[] = user.recoveryCodes ? JSON.parse(user.recoveryCodes) : [];
+      const normalized = recoveryCode.replace(/[^a-z0-9]/g, "");
+      const matchIdx = codes.findIndex((c) => c === normalized);
+      if (matchIdx >= 0) {
+        verified = true;
+        consumedRecovery = normalized;
+        codes.splice(matchIdx, 1);
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { recoveryCodes: JSON.stringify(codes) },
+        });
+      }
     }
-    if (!verifyTotp(user.totpSecret, totpToken)) {
-      return { error: "Código 2FA incorrecto" };
+    if (!verified) {
+      return { error: "Código 2FA o recovery code incorrecto" };
+    }
+    if (consumedRecovery) {
+      await notify({
+        userId: user.id,
+        type: "security",
+        title: "Recovery code usado",
+        body: "Se usó uno de tus códigos de recuperación. Genera nuevos si te quedan pocos.",
+        link: "/dashboard/settings",
+      });
     }
   }
+
+  // Successful login: reset failed counter, update streak/lastLogin, notify
+  const streakDelta = computeStreak(user.lastLoginAt);
+  const newStreak =
+    streakDelta === 0
+      ? user.streakDays
+      : streakDelta === 1
+        ? user.streakDays + 1
+        : 1;
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      failedLogins: 0,
+      lockedUntil: null,
+      lastLoginAt: new Date(),
+      streakDays: newStreak,
+    },
+  });
+
+  // Fire-and-forget login alert (don't block login if notify fails)
+  notify({
+    userId: user.id,
+    type: "login",
+    title: "Nuevo inicio de sesión",
+    body: `Sesión iniciada · ${new Date().toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })}`,
+    link: "/dashboard/settings",
+  }).catch(() => {
+    // ignore
+  });
 
   const session = await getSession();
   session.userId = user.id;
@@ -1108,6 +1215,43 @@ export async function disableTotpAction(
 
   revalidatePath("/dashboard/settings");
   return { ok: true };
+}
+
+export type RecoveryCodesResult =
+  | { ok: true; codes: string[] }
+  | { ok: false; error: string }
+  | undefined;
+
+function generateRecoveryCode(): string {
+  const alphabet = "abcdefghjkmnpqrstuvwxyz23456789";
+  let out = "";
+  for (let i = 0; i < 10; i++) {
+    out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return out;
+}
+
+export async function regenerateRecoveryCodesAction(): Promise<RecoveryCodesResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "No autenticado" };
+  if (!user.totpEnabled) {
+    return { ok: false, error: "Activa primero 2FA para generar códigos de recuperación" };
+  }
+
+  const codes = Array.from({ length: 10 }, generateRecoveryCode);
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { recoveryCodes: JSON.stringify(codes) },
+  });
+  await notify({
+    userId: user.id,
+    type: "security",
+    title: "Códigos de recuperación generados",
+    body: "Se han regenerado tus 10 códigos. Los anteriores ya no funcionan.",
+    link: "/dashboard/settings",
+  });
+  revalidatePath("/dashboard/settings");
+  return { ok: true, codes };
 }
 
 export async function markNotificationReadAction(id: string) {

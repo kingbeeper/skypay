@@ -16,6 +16,11 @@ model User {
   isAdmin       Boolean       @default(false)
   totpSecret    String?
   totpEnabled   Boolean       @default(false)
+  recoveryCodes String?       // JSON array of unused hashed recovery codes
+  failedLogins  Int           @default(0)
+  lockedUntil   DateTime?
+  lastLoginAt   DateTime?
+  streakDays    Int           @default(0)
   createdAt     DateTime      @default(now())
   balances      Balance[]
   transactions  Transaction[]
