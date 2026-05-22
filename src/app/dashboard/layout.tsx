@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { logoutAction } from "@/app/actions";
 import { MobileNav, type NavItem } from "./MobileNav";
+import { BackButton } from "./BackButton";
 
 const baseNavItems: NavItem[] = [
   { href: "/dashboard", label: "Resumen" },
@@ -37,6 +38,7 @@ export default async function DashboardLayout({
               isDemo={user.isDemo}
               isAdmin={user.isAdmin}
             />
+            <BackButton />
             <Link
               href="/"
               className="flex items-center gap-2 font-mono font-semibold uppercase tracking-[0.2em] text-sm sm:text-base"
