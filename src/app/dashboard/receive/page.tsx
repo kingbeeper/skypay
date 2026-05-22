@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import QRCode from "qrcode";
 import { requireUser } from "@/lib/auth";
 import { ASSET_LIST } from "@/lib/assets";
+import { KycRequired } from "../KycRequired";
 import {
   NETWORKS_BY_ASSET,
   deriveDepositAddress,
@@ -21,6 +22,9 @@ export default async function ReceivePage({
   searchParams: SearchParams;
 }) {
   const user = await requireUser();
+  if (user.kycStatus !== "approved") {
+    return <KycRequired feature="recibir cripto" />;
+  }
   const { asset: assetParam, network: networkParam } = await searchParams;
 
   // Step 1: pick crypto

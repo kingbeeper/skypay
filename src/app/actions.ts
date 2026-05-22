@@ -278,6 +278,9 @@ export async function swapAction(
 ): Promise<SwapResult> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "No autenticado" };
+  if (user.kycStatus !== "approved") {
+    return { ok: false, error: "Verifica tu identidad primero (Ajustes → KYC)" };
+  }
 
   const fromAsset = String(formData.get("fromAsset") ?? "");
   const toAsset = String(formData.get("toAsset") ?? "");
@@ -373,6 +376,9 @@ export async function sendP2PAction(
 ): Promise<P2PSendResult> {
   const sender = await getCurrentUser();
   if (!sender) return { ok: false, error: "No autenticado" };
+  if (sender.kycStatus !== "approved") {
+    return { ok: false, error: "Verifica tu identidad primero (Ajustes → KYC)" };
+  }
 
   const recipientEmail = String(formData.get("recipientEmail") ?? "")
     .trim()
@@ -469,6 +475,9 @@ export async function sendCryptoAction(
 ): Promise<SendResult> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "No autenticado" };
+  if (user.kycStatus !== "approved") {
+    return { ok: false, error: "Verifica tu identidad primero (Ajustes → KYC)" };
+  }
 
   const asset = String(formData.get("asset") ?? "");
   const address = String(formData.get("address") ?? "").trim();
@@ -557,6 +566,9 @@ export async function depositAction(
 ): Promise<DepositResult> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "No autenticado" };
+  if (user.kycStatus !== "approved") {
+    return { ok: false, error: "Verifica tu identidad primero (Ajustes → KYC)" };
+  }
 
   const asset = String(formData.get("asset") ?? "");
   const amountRaw = String(formData.get("amount") ?? "");

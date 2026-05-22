@@ -1,9 +1,13 @@
 import { requireUser } from "@/lib/auth";
 import { ASSET_LIST, type AssetSymbol } from "@/lib/assets";
 import { P2PForm } from "./P2PForm";
+import { KycRequired } from "../KycRequired";
 
 export default async function SendUserPage() {
   const user = await requireUser();
+  if (user.kycStatus !== "approved") {
+    return <KycRequired feature="hacer pagos P2P" />;
+  }
 
   const balances: Record<AssetSymbol, number> = {
     BTC: 0,

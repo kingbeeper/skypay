@@ -2,9 +2,13 @@ import { requireUser } from "@/lib/auth";
 import { fetchPrices } from "@/lib/prices";
 import { ASSET_LIST, type AssetSymbol } from "@/lib/assets";
 import { SendForm } from "./SendForm";
+import { KycRequired } from "../KycRequired";
 
 export default async function SendPage() {
   const user = await requireUser();
+  if (user.kycStatus !== "approved") {
+    return <KycRequired feature="enviar cripto" />;
+  }
   const prices = await fetchPrices();
 
   const balances: Record<AssetSymbol, number> = {

@@ -2,11 +2,15 @@ import { requireUser } from "@/lib/auth";
 import { fetchPrices } from "@/lib/prices";
 import { ASSET_LIST, type AssetSymbol } from "@/lib/assets";
 import { SwapForm } from "./SwapForm";
+import { KycRequired } from "../KycRequired";
 
 export const revalidate = 30;
 
 export default async function SwapPage() {
   const user = await requireUser();
+  if (user.kycStatus !== "approved") {
+    return <KycRequired feature="hacer swap" />;
+  }
   const prices = await fetchPrices();
 
   const balances: Record<AssetSymbol, number> = {

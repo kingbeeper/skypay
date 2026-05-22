@@ -7,6 +7,7 @@ import { NotificationBell } from "./NotificationBell";
 import { OnboardingTour } from "./OnboardingTour";
 import { CommandPalette } from "./CommandPalette";
 import { ImpersonationBanner } from "./ImpersonationBanner";
+import { KycBanner } from "./KycBanner";
 import { NavDropdown } from "./NavDropdown";
 import { AccountMenu } from "./AccountMenu";
 import { getTheme } from "@/lib/theme";
@@ -103,6 +104,7 @@ export default async function DashboardLayout({
       </header>
 
       <ImpersonationBanner />
+      <KycBanner />
       <main className="relative z-10 flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 py-8 sm:py-10">
         {children}
       </main>

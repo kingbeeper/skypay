@@ -3,11 +3,15 @@ import { requireUser } from "@/lib/auth";
 import { fetchPrices } from "@/lib/prices";
 import { ASSET_LIST, type AssetSymbol } from "@/lib/assets";
 import { DepositForm } from "./DepositForm";
+import { KycRequired } from "../KycRequired";
 
 export const revalidate = 30;
 
 export default async function DepositPage() {
   const user = await requireUser();
+  if (user.kycStatus !== "approved") {
+    return <KycRequired feature="depositar" />;
+  }
   const prices = await fetchPrices();
 
   const balances: Record<AssetSymbol, number> = {
