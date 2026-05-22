@@ -15,7 +15,6 @@ export default async function DashboardPage() {
     <LiveDashboard
       balances={balances}
       initialPrices={initialPrices}
-      kycStatus={user.kycStatus}
     />
   );
 }

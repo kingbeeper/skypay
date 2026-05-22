@@ -4,11 +4,13 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
   ASSETS,
+  ASSET_LIST,
   formatAmount,
   formatUsd,
   type AssetSymbol,
 } from "@/lib/assets";
 import type { PriceMap } from "@/lib/prices";
+import { CryptoIcon } from "@/components/CryptoIcon";
 
 type Balance = { asset: string; amount: number };
 type Flash = { dir: "up" | "down"; tick: number };
@@ -22,10 +24,9 @@ const BINANCE_STREAM_SYMBOLS: Record<string, AssetSymbol> = {
 type Props = {
   balances: Balance[];
   initialPrices: PriceMap;
-  kycStatus: string;
 };
 
-export function LiveDashboard({ balances, initialPrices, kycStatus }: Props) {
+export function LiveDashboard({ balances, initialPrices }: Props) {
   const [prices, setPrices] = useState<PriceMap>(initialPrices);
   const [flashes, setFlashes] = useState<Record<string, Flash>>({});
   const [connected, setConnected] = useState(false);
@@ -119,28 +120,45 @@ export function LiveDashboard({ balances, initialPrices, kycStatus }: Props) {
     };
   }, []);
 
-  const rows = balances
-    .map((b) => {
-      const symbol = b.asset as AssetSymbol;
-      const info = ASSETS[symbol];
-      if (!info) return null;
-      const price = prices[symbol]?.usd ?? 0;
-      const change24h = prices[symbol]?.change24h ?? 0;
-      const usdValue = b.amount * price;
-      return { symbol, info, amount: b.amount, price, change24h, usdValue };
-    })
-    .filter((r): r is NonNullable<typeof r> => r !== null)
-    .sort((a, b) => b.usdValue - a.usdValue);
+  // Show ALL supported cryptos (BTC, ETH, USDC, SOL) always — regardless of
+  // whether the user holds any. The user's balance per asset is looked up;
+  // missing entries default to 0. This keeps the "Activos" panel useful as a
+  // live price board even for accounts with no holdings yet.
+  const balanceMap = new Map(balances.map((b) => [b.asset, b.amount]));
+  const rows = ASSET_LIST.filter((a) => a.kind !== "fiat").map((info) => {
+    const amount = balanceMap.get(info.symbol) ?? 0;
+    const price = prices[info.symbol]?.usd ?? 0;
+    const change24h = prices[info.symbol]?.change24h ?? 0;
+    const usdValue = amount * price;
+    return {
+      symbol: info.symbol,
+      info,
+      amount,
+      price,
+      change24h,
+      usdValue,
+      holding: amount > 0,
+    };
+  });
+  // Sort holdings first by USD value desc, then non-holdings alphabetically
+  rows.sort((a, b) => {
+    if (a.holding !== b.holding) return a.holding ? -1 : 1;
+    if (a.holding) return b.usdValue - a.usdValue;
+    return a.symbol.localeCompare(b.symbol);
+  });
 
   const totalUsd = rows.reduce((sum, r) => sum + r.usdValue, 0);
-  const cryptoOnlyUsd = rows
-    .filter((r) => r.info.kind !== "fiat")
-    .reduce((sum, r) => sum + r.usdValue, 0);
+  const heldRows = rows.filter((r) => r.holding);
+  const heldCount = heldRows.length;
   const portfolio24h =
     totalUsd === 0
       ? 0
       : rows.reduce((sum, r) => sum + r.usdValue * (r.change24h / 100), 0);
   const portfolio24hPct = totalUsd === 0 ? 0 : (portfolio24h / totalUsd) * 100;
+  // Top mover among all listed cryptos (not just held) — useful at-a-glance
+  const topMover = [...rows].sort(
+    (a, b) => Math.abs(b.change24h) - Math.abs(a.change24h)
+  )[0];
 
   return (
     <div className="space-y-10">
@@ -219,127 +237,135 @@ export function LiveDashboard({ balances, initialPrices, kycStatus }: Props) {
 
       <section className="grid sm:grid-cols-3 gap-px bg-white/[0.06] rounded-2xl overflow-hidden border border-white/[0.06]">
         <Stat
-          label="Cripto"
-          value={formatUsd(cryptoOnlyUsd)}
-          sub={`${rows.filter((r) => r.info.kind !== "fiat").length} activos`}
+          label="Total cripto"
+          value={formatUsd(totalUsd)}
+          sub={`${heldCount} ${heldCount === 1 ? "activo" : "activos"} en cartera`}
         />
         <Stat
-          label="Fiat disponible"
-          value={formatUsd(rows.find((r) => r.symbol === "USD")?.amount ?? 0)}
-          sub="USD"
+          label="Cambio 24h"
+          value={`${portfolio24h >= 0 ? "+" : ""}${formatUsd(portfolio24h).replace("-", "")}`}
+          sub={`${portfolio24h >= 0 ? "▲" : "▼"} ${Math.abs(portfolio24hPct).toFixed(2)}%`}
+          accent={portfolio24h >= 0}
         />
-        <Stat
-          label="KYC"
-          value={kycStatus === "approved" ? "Verificado" : "Pendiente"}
-          sub={kycStatus === "approved" ? "nivel 2" : "documentos requeridos"}
-          accent={kycStatus === "approved"}
-        />
+        {topMover ? (
+          <Stat
+            label="Top movimiento 24h"
+            value={`${topMover.symbol} · ${topMover.change24h >= 0 ? "+" : ""}${topMover.change24h.toFixed(2)}%`}
+            sub={topMover.info.name}
+          />
+        ) : (
+          <Stat label="Top movimiento 24h" value="—" sub="cargando precios" />
+        )}
       </section>
 
       <section>
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-xl font-semibold tracking-tight">Activos</h2>
+        <div className="flex items-end justify-between mb-5">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight">Mercado</h2>
+            <p className="text-xs font-mono text-zinc-500 mt-1">
+              Precios en vivo · todas las criptos soportadas
+            </p>
+          </div>
           <LiveBadge connected={connected} />
         </div>
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-white/[0.02] text-zinc-400 text-xs uppercase tracking-wider font-mono">
-              <tr>
-                <th className="text-left px-3 sm:px-5 py-3">Activo</th>
-                <th className="text-right px-3 sm:px-5 py-3 hidden sm:table-cell">Precio</th>
-                <th className="text-right px-3 sm:px-5 py-3 hidden md:table-cell">24h</th>
-                <th className="text-right px-3 sm:px-5 py-3 hidden sm:table-cell">Balance</th>
-                <th className="text-right px-3 sm:px-5 py-3">Valor USD</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => {
-                const flash = flashes[r.symbol];
-                const flashClass =
-                  flash?.dir === "up"
-                    ? "price-flash-up"
-                    : flash?.dir === "down"
-                      ? "price-flash-down"
-                      : "";
-                const flashKey = flash ? `${r.symbol}-${flash.tick}` : r.symbol;
-                return (
-                  <tr
-                    key={r.symbol}
-                    className="border-t border-white/[0.04] hover:bg-white/[0.02] transition-colors"
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden divide-y divide-white/[0.04]">
+          {rows.map((r) => {
+            const flash = flashes[r.symbol];
+            const flashClass =
+              flash?.dir === "up"
+                ? "price-flash-up"
+                : flash?.dir === "down"
+                  ? "price-flash-down"
+                  : "";
+            const flashKey = flash ? `${r.symbol}-${flash.tick}` : r.symbol;
+            return (
+              <Link
+                key={r.symbol}
+                href={`/dashboard/markets/${r.symbol}`}
+                className="flex items-center gap-4 px-4 sm:px-5 py-4 hover:bg-white/[0.02] transition-colors group"
+              >
+                <CryptoIcon symbol={r.symbol} size={36} className="shrink-0" />
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold truncate">{r.info.name}</span>
+                    {r.holding && (
+                      <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/[0.08] px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-wider text-emerald-300">
+                        en cartera
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[11px] font-mono text-zinc-500 tabular-nums mt-0.5">
+                    {r.symbol}
+                    {r.holding && (
+                      <>
+                        <span className="text-zinc-700 mx-1.5">·</span>
+                        <span className="text-zinc-400">
+                          {formatAmount(r.amount, r.symbol)} {r.symbol}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Price + change */}
+                <div className="text-right shrink-0 min-w-[100px]">
+                  <div className="font-mono font-medium tabular-nums">
+                    <span
+                      key={`p-${flashKey}`}
+                      className={`inline-block px-1.5 py-0.5 -mx-1.5 -my-0.5 rounded ${flashClass}`}
+                    >
+                      {formatUsd(r.price)}
+                    </span>
+                  </div>
+                  <div
+                    className={`text-[11px] font-mono tabular-nums mt-0.5 ${
+                      r.change24h >= 0 ? "text-emerald-400" : "text-red-400"
+                    }`}
                   >
-                    <td className="px-3 sm:px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <span
-                          className="inline-flex h-8 w-8 shrink-0 rounded-full items-center justify-center font-mono text-xs font-semibold"
-                          style={{
-                            backgroundColor: r.info.color + "22",
-                            color: r.info.color,
-                          }}
-                        >
-                          {r.symbol[0]}
-                        </span>
-                        <div className="min-w-0">
-                          <div className="font-medium truncate">{r.info.name}</div>
-                          <div className="text-xs text-zinc-500 font-mono">
-                            {r.symbol}
-                          </div>
-                          <div className="text-[11px] text-zinc-400 font-mono sm:hidden mt-0.5">
-                            {formatAmount(r.amount, r.symbol)} {r.symbol}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="text-right px-3 sm:px-5 py-4 font-mono hidden sm:table-cell">
-                      {r.info.kind === "fiat" ? (
-                        "—"
-                      ) : (
-                        <span
-                          key={`p-${flashKey}`}
-                          className={`inline-block px-2 py-0.5 -mx-2 -my-0.5 rounded ${flashClass}`}
-                        >
-                          {formatUsd(r.price)}
-                        </span>
-                      )}
-                    </td>
-                    <td className="text-right px-3 sm:px-5 py-4 font-mono hidden md:table-cell">
-                      {r.info.kind === "fiat" ? (
-                        <span className="text-zinc-600">—</span>
-                      ) : (
-                        <span
-                          className={
-                            r.change24h >= 0 ? "text-emerald-400" : "text-red-400"
-                          }
-                        >
-                          {r.change24h >= 0 ? "+" : ""}
-                          {r.change24h.toFixed(2)}%
-                        </span>
-                      )}
-                    </td>
-                    <td className="text-right px-3 sm:px-5 py-4 font-mono hidden sm:table-cell">
-                      {formatAmount(r.amount, r.symbol)}
-                    </td>
-                    <td className="text-right px-3 sm:px-5 py-4 font-mono font-medium">
-                      {r.info.kind === "fiat" ? (
-                        formatUsd(r.usdValue)
-                      ) : (
+                    {r.change24h >= 0 ? "▲" : "▼"}{" "}
+                    {Math.abs(r.change24h).toFixed(2)}%
+                  </div>
+                </div>
+
+                {/* Holding value (only if holds) */}
+                <div className="text-right shrink-0 hidden sm:block min-w-[110px] border-l border-white/[0.04] pl-4">
+                  {r.holding ? (
+                    <>
+                      <div className="font-mono font-semibold tabular-nums">
                         <span
                           key={`v-${flashKey}`}
-                          className={`inline-block px-2 py-0.5 -mx-2 -my-0.5 rounded ${flashClass}`}
+                          className={`inline-block px-1.5 py-0.5 -mx-1.5 -my-0.5 rounded ${flashClass}`}
                         >
                           {formatUsd(r.usdValue)}
                         </span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          {rows.length === 0 && (
-            <div className="px-5 py-10 text-center text-zinc-500 text-sm">
-              Sin balances todavía. Deposita para empezar.
-            </div>
-          )}
+                      </div>
+                      <div className="text-[10px] font-mono text-zinc-500 mt-0.5">
+                        tu posición
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-[11px] font-mono text-zinc-600">
+                      sin posición
+                    </div>
+                  )}
+                </div>
+
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4 text-zinc-600 shrink-0 group-hover:text-zinc-400 transition-colors"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </Link>
+            );
+          })}
         </div>
       </section>
     </div>
