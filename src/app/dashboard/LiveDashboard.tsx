@@ -214,11 +214,11 @@ export function LiveDashboard({ balances, initialPrices, kycStatus }: Props) {
           <table className="w-full text-sm">
             <thead className="bg-white/[0.02] text-zinc-400 text-xs uppercase tracking-wider font-mono">
               <tr>
-                <th className="text-left px-5 py-3">Activo</th>
-                <th className="text-right px-5 py-3">Precio</th>
-                <th className="text-right px-5 py-3">24h</th>
-                <th className="text-right px-5 py-3">Balance</th>
-                <th className="text-right px-5 py-3">Valor USD</th>
+                <th className="text-left px-3 sm:px-5 py-3">Activo</th>
+                <th className="text-right px-3 sm:px-5 py-3 hidden sm:table-cell">Precio</th>
+                <th className="text-right px-3 sm:px-5 py-3 hidden md:table-cell">24h</th>
+                <th className="text-right px-3 sm:px-5 py-3 hidden sm:table-cell">Balance</th>
+                <th className="text-right px-3 sm:px-5 py-3">Valor USD</th>
               </tr>
             </thead>
             <tbody>
@@ -236,10 +236,10 @@ export function LiveDashboard({ balances, initialPrices, kycStatus }: Props) {
                     key={r.symbol}
                     className="border-t border-white/[0.04] hover:bg-white/[0.02] transition-colors"
                   >
-                    <td className="px-5 py-4">
+                    <td className="px-3 sm:px-5 py-4">
                       <div className="flex items-center gap-3">
                         <span
-                          className="inline-flex h-8 w-8 rounded-full items-center justify-center font-mono text-xs font-semibold"
+                          className="inline-flex h-8 w-8 shrink-0 rounded-full items-center justify-center font-mono text-xs font-semibold"
                           style={{
                             backgroundColor: r.info.color + "22",
                             color: r.info.color,
@@ -247,15 +247,18 @@ export function LiveDashboard({ balances, initialPrices, kycStatus }: Props) {
                         >
                           {r.symbol[0]}
                         </span>
-                        <div>
-                          <div className="font-medium">{r.info.name}</div>
+                        <div className="min-w-0">
+                          <div className="font-medium truncate">{r.info.name}</div>
                           <div className="text-xs text-zinc-500 font-mono">
                             {r.symbol}
+                          </div>
+                          <div className="text-[11px] text-zinc-400 font-mono sm:hidden mt-0.5">
+                            {formatAmount(r.amount, r.symbol)} {r.symbol}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td className="text-right px-5 py-4 font-mono">
+                    <td className="text-right px-3 sm:px-5 py-4 font-mono hidden sm:table-cell">
                       {r.info.kind === "fiat" ? (
                         "—"
                       ) : (
@@ -267,7 +270,7 @@ export function LiveDashboard({ balances, initialPrices, kycStatus }: Props) {
                         </span>
                       )}
                     </td>
-                    <td className="text-right px-5 py-4 font-mono">
+                    <td className="text-right px-3 sm:px-5 py-4 font-mono hidden md:table-cell">
                       {r.info.kind === "fiat" ? (
                         <span className="text-zinc-600">—</span>
                       ) : (
@@ -281,10 +284,10 @@ export function LiveDashboard({ balances, initialPrices, kycStatus }: Props) {
                         </span>
                       )}
                     </td>
-                    <td className="text-right px-5 py-4 font-mono">
+                    <td className="text-right px-3 sm:px-5 py-4 font-mono hidden sm:table-cell">
                       {formatAmount(r.amount, r.symbol)}
                     </td>
-                    <td className="text-right px-5 py-4 font-mono font-medium">
+                    <td className="text-right px-3 sm:px-5 py-4 font-mono font-medium">
                       {r.info.kind === "fiat" ? (
                         formatUsd(r.usdValue)
                       ) : (

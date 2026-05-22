@@ -1,14 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { logoutAction } from "@/app/actions";
-
-type NavItem = {
-  href: string;
-  label: string;
-  soon?: boolean;
-  highlight?: boolean;
-  admin?: boolean;
-};
+import { MobileNav, type NavItem } from "./MobileNav";
 
 const baseNavItems: NavItem[] = [
   { href: "/dashboard", label: "Resumen" },
@@ -36,9 +29,18 @@ export default async function DashboardLayout({
   return (
     <div className="relative flex flex-col flex-1">
       <header className="relative z-10 border-b border-white/[0.06] backdrop-blur-md bg-[color:var(--background)]/70 sticky top-0">
-        <div className="mx-auto max-w-7xl px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <Link href="/" className="flex items-center gap-2 font-mono font-semibold uppercase tracking-[0.2em]">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 md:gap-8 min-w-0">
+            <MobileNav
+              items={navItems}
+              userEmail={user.email}
+              isDemo={user.isDemo}
+              isAdmin={user.isAdmin}
+            />
+            <Link
+              href="/"
+              className="flex items-center gap-2 font-mono font-semibold uppercase tracking-[0.2em] text-sm sm:text-base"
+            >
               <span className="inline-block h-7 w-7 rounded-md bg-gradient-to-br from-cyan-400 to-indigo-500" />
               SKYPAY
             </Link>
@@ -75,13 +77,13 @@ export default async function DashboardLayout({
               ))}
             </nav>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             {user.isDemo && (
               <span className="hidden sm:inline-flex h-7 items-center rounded-full border border-cyan-400/30 bg-cyan-400/[0.08] px-3 text-xs font-mono text-cyan-100">
                 modo demo
               </span>
             )}
-            <span className="hidden sm:inline text-sm text-zinc-400 font-mono">
+            <span className="hidden lg:inline text-sm text-zinc-400 font-mono truncate max-w-[220px]">
               {user.email}
             </span>
             <form action={logoutAction}>
@@ -96,7 +98,7 @@ export default async function DashboardLayout({
         </div>
       </header>
 
-      <main className="relative z-10 flex-1 mx-auto max-w-7xl w-full px-6 py-10">
+      <main className="relative z-10 flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 py-8 sm:py-10">
         {children}
       </main>
     </div>
