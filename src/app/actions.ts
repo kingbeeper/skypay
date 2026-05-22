@@ -734,6 +734,50 @@ export async function setSpendingSourceAction(cardId: string, asset: string) {
   revalidatePath("/dashboard/card");
 }
 
+export async function updateCardLimitsAction(formData: FormData) {
+  const cardId = String(formData.get("cardId") ?? "");
+  const card = await getOwnedCard(cardId);
+  if (!card) return;
+
+  const monthly = Number(formData.get("monthlyLimit") ?? card.monthlyLimit);
+  const dailyPurchase = Number(
+    formData.get("dailyPurchaseLimit") ?? card.dailyPurchaseLimit
+  );
+  const dailyWithdrawal = Number(
+    formData.get("dailyWithdrawalLimit") ?? card.dailyWithdrawalLimit
+  );
+
+  await prisma.card.update({
+    where: { id: card.id },
+    data: {
+      monthlyLimit: Number.isFinite(monthly) && monthly > 0 ? monthly : card.monthlyLimit,
+      dailyPurchaseLimit:
+        Number.isFinite(dailyPurchase) && dailyPurchase > 0
+          ? dailyPurchase
+          : card.dailyPurchaseLimit,
+      dailyWithdrawalLimit:
+        Number.isFinite(dailyWithdrawal) && dailyWithdrawal >= 0
+          ? dailyWithdrawal
+          : card.dailyWithdrawalLimit,
+    },
+  });
+  revalidatePath("/dashboard/card");
+}
+
+export async function updateCardColorAction(formData: FormData) {
+  const cardId = String(formData.get("cardId") ?? "");
+  const color = String(formData.get("color") ?? "");
+  const card = await getOwnedCard(cardId);
+  if (!card) return;
+  const valid = ["indigo", "midnight", "rose", "emerald", "amber", "graphite"];
+  if (!valid.includes(color)) return;
+  await prisma.card.update({
+    where: { id: card.id },
+    data: { colorTheme: color },
+  });
+  revalidatePath("/dashboard/card");
+}
+
 export async function requestPhysicalAction(cardId: string) {
   const card = await getOwnedCard(cardId);
   if (!card) return;
@@ -766,11 +810,31 @@ export async function simulatePurchaseAction(
   if (!isAssetSymbol(source))
     return { ok: false, error: "Fuente de gasto inválida" };
 
+  // Daily purchase limit check
+  const dayStart = new Date();
+  dayStart.setHours(0, 0, 0, 0);
+  const dailySoFar = await prisma.cardTransaction.aggregate({
+    where: {
+      cardId: card.id,
+      status: "approved",
+      createdAt: { gte: dayStart },
+    },
+    _sum: { amountUsd: true },
+  });
+  const spentToday = dailySoFar._sum.amountUsd ?? 0;
+  if (spentToday + amountUsd > card.dailyPurchaseLimit) {
+    return {
+      ok: false,
+      error: `Excede el límite diario de compra ($${card.dailyPurchaseLimit.toFixed(0)})`,
+    };
+  }
+
   const prices = await fetchPrices();
   const sourcePrice = prices[source]?.usd ?? 0;
   if (sourcePrice <= 0) return { ok: false, error: "Precio no disponible" };
 
   const sourceAmount = amountUsd / sourcePrice;
+  const cashbackUsd = (amountUsd * card.cashbackPercent) / 100;
   const balance = await prisma.balance.findUnique({
     where: { userId_asset: { userId: card.userId, asset: source } },
   });
@@ -798,6 +862,12 @@ export async function simulatePurchaseAction(
       where: { userId_asset: { userId: card.userId, asset: source } },
       data: { amount: { decrement: sourceAmount } },
     }),
+    // Cashback credited in USD
+    prisma.balance.upsert({
+      where: { userId_asset: { userId: card.userId, asset: "USD" } },
+      update: { amount: { increment: cashbackUsd } },
+      create: { userId: card.userId, asset: "USD", amount: cashbackUsd },
+    }),
     prisma.cardTransaction.create({
       data: {
         cardId: card.id,
@@ -807,6 +877,7 @@ export async function simulatePurchaseAction(
         sourceAsset: source,
         sourceAmount,
         rate: 1 / sourcePrice,
+        cashbackUsd,
         status: "approved",
       },
     }),

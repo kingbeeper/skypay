@@ -126,22 +126,26 @@ model WebhookEvent {
 }
 
 model Card {
-  id                String            @id @default(cuid())
-  userId            String
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type              String            @default("virtual")
-  status            String            @default("active")
-  pan               String
-  last4             String
-  expMonth          Int
-  expYear           Int
-  cvv               String
-  holderName        String
-  spendingSource    String            @default("USD")
-  monthlyLimit      Float             @default(2000)
-  physicalRequested Boolean           @default(false)
-  createdAt         DateTime          @default(now())
-  transactions      CardTransaction[]
+  id                   String            @id @default(cuid())
+  userId               String
+  user                 User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type                 String            @default("virtual")
+  status               String            @default("active")
+  pan                  String
+  last4                String
+  expMonth             Int
+  expYear              Int
+  cvv                  String
+  holderName           String
+  spendingSource       String            @default("USD")
+  monthlyLimit         Float             @default(2000)
+  dailyPurchaseLimit   Float             @default(1000)
+  dailyWithdrawalLimit Float             @default(500)
+  cashbackPercent      Float             @default(1.0)
+  colorTheme           String            @default("indigo")
+  physicalRequested    Boolean           @default(false)
+  createdAt            DateTime          @default(now())
+  transactions         CardTransaction[]
 }
 
 model CardTransaction {
@@ -154,6 +158,7 @@ model CardTransaction {
   sourceAsset  String
   sourceAmount Float
   rate         Float
+  cashbackUsd  Float    @default(0)
   status       String   @default("approved")
   createdAt    DateTime @default(now())
 

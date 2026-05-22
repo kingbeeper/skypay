@@ -3,8 +3,51 @@
 import { useState } from "react";
 import type { Card } from "@prisma/client";
 
+export const CARD_THEMES: Record<
+  string,
+  { label: string; gradient: string; accent: string }
+> = {
+  indigo: {
+    label: "Indigo",
+    gradient:
+      "linear-gradient(135deg, #1e1b4b 0%, #312e81 30%, #6d28d9 60%, #c026d3 100%)",
+    accent: "rgba(34, 211, 238, 0.4)",
+  },
+  midnight: {
+    label: "Midnight",
+    gradient:
+      "linear-gradient(135deg, #020617 0%, #0f172a 40%, #1e293b 70%, #334155 100%)",
+    accent: "rgba(56, 189, 248, 0.3)",
+  },
+  rose: {
+    label: "Rose",
+    gradient:
+      "linear-gradient(135deg, #4c0519 0%, #881337 30%, #be185d 70%, #f472b6 100%)",
+    accent: "rgba(251, 113, 133, 0.4)",
+  },
+  emerald: {
+    label: "Esmeralda",
+    gradient:
+      "linear-gradient(135deg, #064e3b 0%, #047857 30%, #0d9488 60%, #14b8a6 100%)",
+    accent: "rgba(110, 231, 183, 0.4)",
+  },
+  amber: {
+    label: "Ámbar",
+    gradient:
+      "linear-gradient(135deg, #451a03 0%, #92400e 30%, #d97706 70%, #fbbf24 100%)",
+    accent: "rgba(252, 211, 77, 0.45)",
+  },
+  graphite: {
+    label: "Grafito",
+    gradient:
+      "linear-gradient(135deg, #18181b 0%, #27272a 30%, #3f3f46 70%, #52525b 100%)",
+    accent: "rgba(212, 212, 216, 0.3)",
+  },
+};
+
 export function CardVisual({ card }: { card: Card }) {
   const [revealed, setRevealed] = useState(false);
+  const theme = CARD_THEMES[card.colorTheme] ?? CARD_THEMES.indigo;
 
   const formattedPan = revealed
     ? card.pan.replace(/(.{4})/g, "$1 ").trim()
@@ -16,16 +59,12 @@ export function CardVisual({ card }: { card: Card }) {
     <div className="space-y-4">
       <div
         className="relative aspect-[1.586/1] rounded-2xl overflow-hidden shadow-2xl p-7 flex flex-col justify-between text-white"
-        style={{
-          background:
-            "linear-gradient(135deg, #1e1b4b 0%, #312e81 30%, #6d28d9 60%, #c026d3 100%)",
-        }}
+        style={{ background: theme.gradient }}
       >
         <div
           className="absolute inset-0 opacity-30 pointer-events-none"
           style={{
-            background:
-              "radial-gradient(ellipse 100% 60% at 30% 30%, rgba(34, 211, 238, 0.4), transparent 50%), radial-gradient(ellipse 80% 50% at 80% 80%, rgba(244, 114, 182, 0.3), transparent 50%)",
+            background: `radial-gradient(ellipse 100% 60% at 30% 30%, ${theme.accent}, transparent 50%), radial-gradient(ellipse 80% 50% at 80% 80%, rgba(255, 255, 255, 0.15), transparent 50%)`,
           }}
         />
         <div className="relative flex justify-between items-start">

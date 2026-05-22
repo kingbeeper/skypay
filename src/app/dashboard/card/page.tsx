@@ -7,6 +7,9 @@ import { CardControls } from "./CardControls";
 import { SimulatePurchase } from "./SimulatePurchase";
 import { CardRequestLanding } from "./CardRequestLanding";
 import { WalletButtons } from "./WalletButtons";
+import { CardLimitsForm } from "./CardLimitsForm";
+import { CardColorPicker } from "./CardColorPicker";
+import { CashbackSection } from "./CashbackSection";
 
 export default async function CardPage() {
   const user = await requireUser();
@@ -66,14 +69,23 @@ export default async function CardPage() {
         <div className="space-y-6">
           <CardVisual card={card} />
           <WalletButtons last4={card.last4} />
+          <CardColorPicker cardId={card.id} current={card.colorTheme} />
         </div>
-        <CardControls
-          card={card}
-          assets={ASSET_LIST}
-          balances={balances}
-          sourcePrice={sourcePrice}
-          sourceUsdValue={sourceUsdValue}
-        />
+        <div className="space-y-6">
+          <CardControls
+            card={card}
+            assets={ASSET_LIST}
+            balances={balances}
+            sourcePrice={sourcePrice}
+            sourceUsdValue={sourceUsdValue}
+          />
+          <CardLimitsForm
+            cardId={card.id}
+            monthlyLimit={card.monthlyLimit}
+            dailyPurchaseLimit={card.dailyPurchaseLimit}
+            dailyWithdrawalLimit={card.dailyWithdrawalLimit}
+          />
+        </div>
       </div>
 
       <section className="grid sm:grid-cols-3 gap-px bg-white/[0.06] rounded-2xl overflow-hidden border border-white/[0.06]">
@@ -121,6 +133,18 @@ export default async function CardPage() {
           </div>
         </div>
       </section>
+
+      <CashbackSection
+        cashbackPercent={card.cashbackPercent}
+        transactions={transactions.map((t) => ({
+          id: t.id,
+          merchant: t.merchant,
+          category: t.category,
+          amountUsd: t.amountUsd,
+          cashbackUsd: t.cashbackUsd,
+          createdAt: t.createdAt,
+        }))}
+      />
 
       <SimulatePurchase
         cardId={card.id}
