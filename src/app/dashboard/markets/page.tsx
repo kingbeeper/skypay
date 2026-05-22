@@ -105,7 +105,7 @@ export default async function MarketsPage() {
           {rows.map((r) => (
             <Link
               key={r.info.symbol}
-              href={`/dashboard/swap`}
+              href={`/dashboard/markets/${r.info.symbol}`}
               className="flex items-center gap-4 px-4 sm:px-5 py-4 hover:bg-white/[0.04] transition-colors"
             >
               <span
