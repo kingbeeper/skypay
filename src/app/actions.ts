@@ -652,6 +652,9 @@ export async function requestCardAction(
 ): Promise<CardRequestResult> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "No autenticado" };
+  if (user.kycStatus !== "approved") {
+    return { ok: false, error: "Verifica tu identidad primero (Ajustes → KYC)" };
+  }
 
   const existing = await prisma.card.findFirst({
     where: { userId: user.id },
@@ -909,6 +912,9 @@ export async function buyTicketsAction(
 ): Promise<BuyTicketsResult> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "No autenticado" };
+  if (user.kycStatus !== "approved") {
+    return { ok: false, error: "Verifica tu identidad primero (Ajustes → KYC)" };
+  }
 
   const ticketsRaw = String(formData.get("tickets") ?? "");
   const tickets = Math.floor(Number(ticketsRaw));

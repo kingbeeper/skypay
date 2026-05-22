@@ -10,9 +10,13 @@ import { WalletButtons } from "./WalletButtons";
 import { CardLimitsForm } from "./CardLimitsForm";
 import { CardColorPicker } from "./CardColorPicker";
 import { CashbackSection } from "./CashbackSection";
+import { KycRequired } from "../KycRequired";
 
 export default async function CardPage() {
   const user = await requireUser();
+  if (user.kycStatus !== "approved") {
+    return <KycRequired feature="solicitar la tarjeta" />;
+  }
   const card = await prisma.card.findFirst({ where: { userId: user.id } });
 
   if (!card) {

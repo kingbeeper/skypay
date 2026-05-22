@@ -12,9 +12,13 @@ import {
 import { Countdown } from "./Countdown";
 import { BuyTicketsForm } from "./BuyTicketsForm";
 import { DrawButton } from "./DrawButton";
+import { KycRequired } from "../KycRequired";
 
 export default async function RafflePage() {
   const user = await requireUser();
+  if (user.kycStatus !== "approved") {
+    return <KycRequired feature="participar en la rifa" />;
+  }
   const round = await getOrCreateCurrentRound();
 
   const [userEntry, totals, pastRounds, prices, realEntries] = await Promise.all([
