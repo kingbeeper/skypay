@@ -15,6 +15,7 @@ const baseNavItems: NavItem[] = [
   { href: "/dashboard/card", label: "Tarjeta" },
   { href: "/dashboard/raffle", label: "Rifa", highlight: true },
   { href: "/dashboard/history", label: "Historial" },
+  { href: "/dashboard/settings", label: "Ajustes" },
 ];
 
 export default async function DashboardLayout({

@@ -943,6 +943,94 @@ export async function setThemeAction(theme: Theme) {
   revalidatePath("/", "layout");
 }
 
+export type ProfileUpdateResult =
+  | { ok: true; message: string }
+  | { ok: false; error: string }
+  | undefined;
+
+export async function updateNameAction(
+  _prev: ProfileUpdateResult,
+  formData: FormData
+): Promise<ProfileUpdateResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "No autenticado" };
+
+  const name = String(formData.get("name") ?? "").trim();
+  if (name.length > 60) {
+    return { ok: false, error: "Máximo 60 caracteres" };
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { name: name || null },
+  });
+
+  revalidatePath("/dashboard", "layout");
+  return { ok: true, message: name ? "Nombre actualizado" : "Nombre eliminado" };
+}
+
+export async function changePasswordAction(
+  _prev: ProfileUpdateResult,
+  formData: FormData
+): Promise<ProfileUpdateResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "No autenticado" };
+
+  const current = String(formData.get("currentPassword") ?? "");
+  const next = String(formData.get("newPassword") ?? "");
+  const confirm = String(formData.get("confirmPassword") ?? "");
+
+  if (next.length < 8) {
+    return { ok: false, error: "La nueva contraseña debe tener al menos 8 caracteres" };
+  }
+  if (next !== confirm) {
+    return { ok: false, error: "Las contraseñas no coinciden" };
+  }
+
+  const ok = await bcrypt.compare(current, user.passwordHash);
+  if (!ok) return { ok: false, error: "Contraseña actual incorrecta" };
+
+  const passwordHash = await bcrypt.hash(next, 10);
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { passwordHash },
+  });
+
+  return { ok: true, message: "Contraseña actualizada" };
+}
+
+export type DeleteSelfResult =
+  | { ok: true }
+  | { ok: false; error: string }
+  | undefined;
+
+export async function deleteOwnAccountAction(
+  _prev: DeleteSelfResult,
+  formData: FormData
+): Promise<DeleteSelfResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "No autenticado" };
+
+  const confirmEmail = String(formData.get("confirmEmail") ?? "")
+    .trim()
+    .toLowerCase();
+  if (confirmEmail !== user.email) {
+    return { ok: false, error: "El correo de confirmación no coincide" };
+  }
+
+  await prisma.$transaction([
+    prisma.raffleRound.updateMany({
+      where: { winnerUserId: user.id },
+      data: { winnerUserId: null },
+    }),
+    prisma.user.delete({ where: { id: user.id } }),
+  ]);
+
+  const session = await getSession();
+  session.destroy();
+  redirect("/");
+}
+
 export async function adminForceDrawAction() {
   const me = await getCurrentUser();
   if (!me || !me.isAdmin) return;
