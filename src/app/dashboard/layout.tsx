@@ -9,7 +9,7 @@ import { getTheme } from "@/lib/theme";
 
 const baseNavItems: NavItem[] = [
   { href: "/dashboard", label: "Resumen" },
-  { href: "/dashboard/markets", label: "Mercados", soon: true },
+  { href: "/dashboard/markets", label: "Mercados" },
   { href: "/dashboard/swap", label: "Swap" },
   { href: "/dashboard/send", label: "Enviar" },
   { href: "/dashboard/receive", label: "Recibir" },
