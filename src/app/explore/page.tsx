@@ -8,10 +8,10 @@ export default async function ExplorePage() {
   const raffle = await getOrCreateCurrentRound();
 
   return (
-    <div className="relative flex flex-col flex-1 overflow-hidden">
-      <div className="absolute inset-0 grid-bg pointer-events-none" aria-hidden />
+    <div className="relative flex flex-col flex-1">
+      <div className="fixed inset-0 grid-bg pointer-events-none -z-10" aria-hidden />
 
-      <header className="relative z-10 sticky top-0 backdrop-blur-md bg-[color:var(--background)]/70 border-b border-white/[0.06]">
+      <header className="sticky top-0 z-30 backdrop-blur-md bg-[color:var(--background)]/85 border-b border-white/[0.08]">
         <div className="mx-auto max-w-6xl px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 font-mono font-semibold uppercase tracking-[0.2em]">
             <span className="inline-block h-7 w-7 rounded-md bg-gradient-to-br from-cyan-400 to-indigo-500" />

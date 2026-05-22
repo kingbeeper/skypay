@@ -30,7 +30,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="relative flex flex-col flex-1">
-      <header className="relative z-10 border-b border-white/[0.06] backdrop-blur-md bg-[color:var(--background)]/70 sticky top-0">
+      <header className="sticky top-0 z-30 border-b border-white/[0.08] backdrop-blur-md bg-[color:var(--background)]/85">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 md:gap-8 min-w-0">
             <MobileNav
