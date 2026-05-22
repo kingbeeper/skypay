@@ -20,6 +20,22 @@ model User {
   cards         Card[]
   raffleEntries RaffleEntry[]
   raffleWins    RaffleRound[] @relation("RaffleWinner")
+  notifications Notification[]
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String?
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, read])
 }
 
 model Card {

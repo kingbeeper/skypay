@@ -4,6 +4,7 @@ import { logoutAction } from "@/app/actions";
 import { MobileNav, type NavItem } from "./MobileNav";
 import { BackButton } from "./BackButton";
 import { ThemeToggle } from "./ThemeToggle";
+import { NotificationBell } from "./NotificationBell";
 import { getTheme } from "@/lib/theme";
 
 const baseNavItems: NavItem[] = [
@@ -93,6 +94,7 @@ export default async function DashboardLayout({
             <span className="hidden lg:inline text-sm text-zinc-400 font-mono truncate max-w-[220px]">
               {user.email}
             </span>
+            <NotificationBell />
             <ThemeToggle current={theme} />
             <form action={logoutAction}>
               <button

@@ -22,6 +22,7 @@ import {
   shortenAddress,
 } from "@/lib/addresses";
 import { setThemeCookie, type Theme } from "@/lib/theme";
+import { notify } from "@/lib/notifications";
 
 export type AuthResult = { error: string } | undefined;
 export type SwapResult =
@@ -186,6 +187,14 @@ export async function swapAction(
     }),
   ]);
 
+  await notify({
+    userId: user.id,
+    type: "swap",
+    title: `Swap completado · ${fromAsset} → ${toAsset}`,
+    body: `Convertiste ${fromAmount.toLocaleString("en-US", { maximumFractionDigits: ASSETS[fromAsset].precision })} ${fromAsset} a ${toAmount.toLocaleString("en-US", { maximumFractionDigits: ASSETS[toAsset].precision })} ${toAsset}`,
+    link: "/dashboard/history?tipo=swap",
+  });
+
   revalidatePath("/dashboard/swap");
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/history");
@@ -261,6 +270,14 @@ export async function sendCryptoAction(
     }),
   ]);
 
+  await notify({
+    userId: user.id,
+    type: "send",
+    title: `Envío ${asset} confirmado`,
+    body: `Enviaste ${amount.toLocaleString("en-US", { maximumFractionDigits: ASSETS[asset].precision })} ${asset} a ${shortAddr}`,
+    link: "/dashboard/history?tipo=envio",
+  });
+
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/send");
   revalidatePath("/dashboard/history");
@@ -323,6 +340,14 @@ export async function depositAction(
       },
     }),
   ]);
+
+  await notify({
+    userId: user.id,
+    type: "deposit",
+    title: `Depósito recibido · ${asset}`,
+    body: `${amount.toLocaleString("en-US", { maximumFractionDigits: ASSETS[asset].precision })} ${asset} acreditados (${method})`,
+    link: "/dashboard/history?tipo=deposito",
+  });
 
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/deposit");
@@ -518,6 +543,14 @@ export async function simulatePurchaseAction(
     }),
   ]);
 
+  await notify({
+    userId: card.userId,
+    type: "card_purchase",
+    title: `Pago con tarjeta · ${merchant}`,
+    body: `$${amountUsd.toFixed(2)} cobrados de tu saldo ${source}`,
+    link: "/dashboard/card",
+  });
+
   revalidatePath("/dashboard/card");
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/history");
@@ -706,6 +739,16 @@ export async function drawRaffleAction(
 
   await prisma.$transaction(writes);
 
+  if (result.kind === "user") {
+    await notify({
+      userId: result.userId,
+      type: "raffle_win",
+      title: `¡Ganaste la rifa! · ${round.prizeBtc} BTC`,
+      body: `Acabas de ganar ${round.prizeBtc} BTC. El premio ya está en tu balance.`,
+      link: "/dashboard/raffle",
+    });
+  }
+
   let winnerLabel: string;
   if (result.kind === "user") {
     const winner = await prisma.user.findUnique({
@@ -879,6 +922,13 @@ export async function adjustBalanceAction(
     }),
   ]);
 
+  await notify({
+    userId,
+    type: "admin_adjust",
+    title: `Tu balance fue ajustado por admin`,
+    body: `${delta >= 0 ? "+" : "−"}${Math.abs(delta)} ${asset}${reason ? ` · ${reason}` : ""}`,
+  });
+
   revalidatePath(`/dashboard/admin/users/${userId}`);
   revalidatePath("/dashboard/admin");
 
@@ -936,6 +986,26 @@ export async function deleteUserAction(
   revalidatePath("/dashboard/admin");
 
   return { ok: true, email: target.email };
+}
+
+export async function markNotificationReadAction(id: string) {
+  const user = await getCurrentUser();
+  if (!user) return;
+  await prisma.notification.updateMany({
+    where: { id, userId: user.id },
+    data: { read: true },
+  });
+  revalidatePath("/dashboard", "layout");
+}
+
+export async function markAllNotificationsReadAction() {
+  const user = await getCurrentUser();
+  if (!user) return;
+  await prisma.notification.updateMany({
+    where: { userId: user.id, read: false },
+    data: { read: true },
+  });
+  revalidatePath("/dashboard", "layout");
 }
 
 export async function setThemeAction(theme: Theme) {
