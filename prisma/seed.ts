@@ -86,6 +86,20 @@ async function main() {
     data: { spendingSource: "USDC" },
   });
 
+  // Migrate legacy transaction rows referencing USD → USDC
+  await prisma.transaction.updateMany({
+    where: { fromAsset: "USD" },
+    data: { fromAsset: "USDC" },
+  });
+  await prisma.transaction.updateMany({
+    where: { toAsset: "USD" },
+    data: { toAsset: "USDC" },
+  });
+  await prisma.cardTransaction.updateMany({
+    where: { sourceAsset: "USD" },
+    data: { sourceAsset: "USDC" },
+  });
+
   const seedBalances: Array<{ asset: string; amount: number }> = [
     { asset: "USDC", amount: 6000 },
     { asset: "BTC", amount: 0.05 },

@@ -47,10 +47,14 @@ export const ASSETS: Record<AssetSymbol, AssetInfo> = {
 export const ASSET_LIST = Object.values(ASSETS);
 
 export function formatAmount(amount: number, symbol: AssetSymbol): string {
-  const info = ASSETS[symbol];
+  // Defensive: legacy/unknown symbols fall back to 2-decimal precision instead
+  // of throwing. This matters for old transaction rows that may still reference
+  // assets we no longer support (e.g. USD before the fiat removal migration).
+  const info = ASSETS[symbol] as AssetInfo | undefined;
+  const precision = info?.precision ?? 2;
   return amount.toLocaleString("en-US", {
     minimumFractionDigits: 2,
-    maximumFractionDigits: info.precision,
+    maximumFractionDigits: precision,
   });
 }
 

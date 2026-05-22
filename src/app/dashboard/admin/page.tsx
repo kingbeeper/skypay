@@ -426,7 +426,7 @@ export default async function AdminPage() {
               <tr>
                 <th className="text-left px-5 py-3">Usuario</th>
                 <th className="text-left px-5 py-3">Roles</th>
-                <th className="text-right px-5 py-3">USD</th>
+                <th className="text-right px-5 py-3">USDC</th>
                 <th className="text-right px-5 py-3">BTC</th>
                 <th className="text-right px-5 py-3">Tx</th>
                 <th className="text-right px-5 py-3">Tickets ronda</th>
@@ -438,7 +438,7 @@ export default async function AdminPage() {
             <tbody>
               {users.map((u) => {
                 const usd =
-                  u.balances.find((b) => b.asset === "USD")?.amount ?? 0;
+                  u.balances.find((b) => b.asset === "USDC")?.amount ?? 0;
                 const btc =
                   u.balances.find((b) => b.asset === "BTC")?.amount ?? 0;
                 const btcValue = btc * btcPrice;
