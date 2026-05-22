@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { fetchPrices } from "@/lib/prices";
 import {
   ASSETS,
@@ -9,6 +10,8 @@ import {
   type AssetInfo,
 } from "@/lib/assets";
 import { PriceChart } from "../PriceChart";
+import { WatchlistStar } from "../WatchlistStar";
+import { PriceAlertForm } from "./PriceAlertForm";
 
 const CHART_POINTS = 90;
 
@@ -65,14 +68,25 @@ export default async function AssetDetailPage({
 }: {
   params: Promise<{ symbol: string }>;
 }) {
-  await requireUser();
+  const user = await requireUser();
   const { symbol: symbolParam } = await params;
   const symbol = symbolParam.toUpperCase() as AssetSymbol;
 
   const info = ASSETS[symbol];
   if (!info || info.kind === "fiat") notFound();
 
-  const prices = await fetchPrices();
+  const [prices, watchlistRow, alerts] = await Promise.all([
+    fetchPrices(),
+    prisma.watchlist.findUnique({
+      where: { userId_asset: { userId: user.id, asset: symbol } },
+    }),
+    prisma.priceAlert.findMany({
+      where: { userId: user.id, asset: symbol },
+      orderBy: { createdAt: "desc" },
+    }),
+  ]);
+
+  const watching = !!watchlistRow;
   const usd = prices[symbol]?.usd ?? 0;
   const change24h = prices[symbol]?.change24h ?? 0;
   const startPrice = usd / (1 + change24h / 100);
@@ -102,9 +116,12 @@ export default async function AssetDetailPage({
             {info.symbol[0]}
           </span>
           <div className="min-w-0">
-            <h1 className="text-3xl font-semibold tracking-tight">
-              {info.name}
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-3xl font-semibold tracking-tight">
+                {info.name}
+              </h1>
+              <WatchlistStar asset={symbol} watching={watching} />
+            </div>
             <div className="text-sm font-mono text-zinc-500">{info.symbol}</div>
           </div>
           <div className="ml-auto text-right shrink-0">
@@ -177,6 +194,23 @@ export default async function AssetDetailPage({
           </div>
           <div className="font-medium">A wallet externa</div>
         </Link>
+      </section>
+
+      <section className="grid lg:grid-cols-2 gap-6">
+        <PriceAlertForm asset={symbol} currentUsd={usd} alerts={alerts} />
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5 space-y-3">
+          <div className="font-medium">¿Cómo funciona esto?</div>
+          <p className="text-xs text-zinc-500 leading-relaxed">
+            Las alertas de precio se evalúan cuando refrescas cualquier
+            página del dashboard (cada {`<`} 30s). Cuando el precio cruza el
+            umbral verás una notificación en la campana y queda registrada en
+            el historial. Cada alerta solo se dispara una vez.
+          </p>
+          <div className="rounded-lg bg-cyan-400/[0.04] border border-cyan-400/20 p-3 text-xs text-cyan-200/80">
+            Pro tip: combina la alerta con la rifa — si BTC sube, tu portfolio
+            también, y puedes comprar más tickets.
+          </div>
+        </div>
       </section>
 
       <section>

@@ -1217,6 +1217,129 @@ export async function disableTotpAction(
   return { ok: true };
 }
 
+// ----- Watchlist -----
+
+export async function toggleWatchlistAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return;
+  const asset = String(formData.get("asset") ?? "");
+  if (!isAssetSymbol(asset) || asset === "USD") return;
+
+  const existing = await prisma.watchlist.findUnique({
+    where: { userId_asset: { userId: user.id, asset } },
+  });
+  if (existing) {
+    await prisma.watchlist.delete({ where: { id: existing.id } });
+  } else {
+    await prisma.watchlist.create({
+      data: { userId: user.id, asset },
+    });
+  }
+  revalidatePath("/dashboard/markets", "layout");
+  revalidatePath(`/dashboard/markets/${asset}`);
+}
+
+// ----- Price alerts -----
+
+export type PriceAlertCreateResult =
+  | { ok: true; id: string }
+  | { ok: false; error: string }
+  | undefined;
+
+export async function createPriceAlertAction(
+  _prev: PriceAlertCreateResult,
+  formData: FormData
+): Promise<PriceAlertCreateResult> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "No autenticado" };
+
+  const asset = String(formData.get("asset") ?? "");
+  const direction = String(formData.get("direction") ?? "");
+  const targetUsd = Number(formData.get("targetUsd") ?? "0");
+
+  if (!isAssetSymbol(asset) || asset === "USD") {
+    return { ok: false, error: "Activo no válido" };
+  }
+  if (direction !== "above" && direction !== "below") {
+    return { ok: false, error: "Dirección inválida" };
+  }
+  if (!Number.isFinite(targetUsd) || targetUsd <= 0) {
+    return { ok: false, error: "Precio objetivo inválido" };
+  }
+
+  const alert = await prisma.priceAlert.create({
+    data: {
+      userId: user.id,
+      asset,
+      direction,
+      targetUsd,
+    },
+  });
+
+  revalidatePath(`/dashboard/markets/${asset}`);
+  revalidatePath("/dashboard/settings");
+  return { ok: true, id: alert.id };
+}
+
+export async function deletePriceAlertAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) return;
+  const id = String(formData.get("id") ?? "");
+  await prisma.priceAlert.deleteMany({
+    where: { id, userId: user.id },
+  });
+  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard/markets", "layout");
+}
+
+/**
+ * Evaluates all pending alerts against current prices. Should be called
+ * periodically (e.g. from a client polling endpoint or background job).
+ * Marks triggered alerts and creates notifications.
+ */
+export async function checkPriceAlertsAction() {
+  const pending = await prisma.priceAlert.findMany({
+    where: { triggered: false },
+  });
+  if (pending.length === 0) return;
+
+  const { fetchPrices } = await import("@/lib/prices");
+  const prices = await fetchPrices({ ttlSeconds: 30 });
+
+  const triggered: { id: string; userId: string; asset: string; direction: string; targetUsd: number; currentUsd: number }[] = [];
+  for (const a of pending) {
+    const currentUsd = prices[a.asset as AssetSymbol]?.usd ?? 0;
+    if (currentUsd <= 0) continue;
+    const hit =
+      (a.direction === "above" && currentUsd >= a.targetUsd) ||
+      (a.direction === "below" && currentUsd <= a.targetUsd);
+    if (hit) {
+      triggered.push({
+        id: a.id,
+        userId: a.userId,
+        asset: a.asset,
+        direction: a.direction,
+        targetUsd: a.targetUsd,
+        currentUsd,
+      });
+    }
+  }
+
+  for (const t of triggered) {
+    await prisma.priceAlert.update({
+      where: { id: t.id },
+      data: { triggered: true, triggeredAt: new Date() },
+    });
+    await notify({
+      userId: t.userId,
+      type: "price_alert",
+      title: `🔔 ${t.asset} ${t.direction === "above" ? "subió a" : "bajó a"} ${t.currentUsd.toFixed(2)}`,
+      body: `Alerta: ${t.asset} ${t.direction === "above" ? "≥" : "≤"} $${t.targetUsd.toLocaleString()}`,
+      link: `/dashboard/markets/${t.asset}`,
+    });
+  }
+}
+
 export type RecoveryCodesResult =
   | { ok: true; codes: string[] }
   | { ok: false; error: string }

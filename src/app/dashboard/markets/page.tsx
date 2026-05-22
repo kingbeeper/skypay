@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { fetchPrices } from "@/lib/prices";
+import { checkPriceAlertsAction } from "@/app/actions";
 import {
   ASSET_LIST,
   formatUsd,
@@ -8,6 +10,7 @@ import {
   type AssetInfo,
 } from "@/lib/assets";
 import { Sparkline } from "./Sparkline";
+import { WatchlistStar } from "./WatchlistStar";
 
 const SPARKLINE_POINTS = 24;
 
@@ -47,8 +50,14 @@ function deterministicSeries(
 }
 
 export default async function MarketsPage() {
-  await requireUser();
-  const prices = await fetchPrices();
+  const user = await requireUser();
+  // Evaluate price alerts on every visit to /markets (fire-and-forget)
+  checkPriceAlertsAction().catch(() => {});
+  const [prices, watchlist] = await Promise.all([
+    fetchPrices(),
+    prisma.watchlist.findMany({ where: { userId: user.id } }),
+  ]);
+  const watchedSet = new Set(watchlist.map((w) => w.asset));
 
   const rows = ASSET_LIST.filter((a) => a.kind !== "fiat")
     .map((info) => {
@@ -67,6 +76,7 @@ export default async function MarketsPage() {
 
   const topGainer = [...rows].sort((a, b) => b.change24h - a.change24h)[0];
   const topLoser = [...rows].sort((a, b) => a.change24h - b.change24h)[0];
+  const favorites = rows.filter((r) => watchedSet.has(r.info.symbol));
 
   return (
     <div className="space-y-10">
@@ -91,6 +101,60 @@ export default async function MarketsPage() {
           row={topLoser}
         />
       </section>
+
+      {favorites.length > 0 && (
+        <section>
+          <div className="flex items-end justify-between mb-5">
+            <h2 className="text-xl font-semibold tracking-tight">
+              ★ Tus favoritos
+            </h2>
+            <span className="text-xs font-mono text-zinc-500">
+              {favorites.length} {favorites.length === 1 ? "activo" : "activos"}
+            </span>
+          </div>
+          <div className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.03] overflow-hidden divide-y divide-white/[0.04]">
+            {favorites.map((r) => (
+              <Link
+                key={r.info.symbol}
+                href={`/dashboard/markets/${r.info.symbol}`}
+                className="flex items-center gap-4 px-4 sm:px-5 py-4 hover:bg-white/[0.04] transition-colors"
+              >
+                <span
+                  className="inline-flex h-9 w-9 shrink-0 rounded-full items-center justify-center font-mono text-xs font-semibold"
+                  style={{
+                    backgroundColor: r.info.color + "22",
+                    color: r.info.color,
+                  }}
+                >
+                  {r.info.symbol[0]}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate">{r.info.name}</div>
+                  <div className="text-xs text-zinc-500 font-mono">
+                    {r.info.symbol}
+                  </div>
+                </div>
+                <div className="hidden sm:block">
+                  <Sparkline values={r.series} positive={r.change24h >= 0} />
+                </div>
+                <div className="text-right shrink-0 min-w-[100px]">
+                  <div className="font-mono text-sm tabular-nums">
+                    {formatUsd(r.usd)}
+                  </div>
+                  <div
+                    className={`text-xs font-mono ${
+                      r.change24h >= 0 ? "text-emerald-400" : "text-red-400"
+                    }`}
+                  >
+                    {r.change24h >= 0 ? "▲" : "▼"}{" "}
+                    {Math.abs(r.change24h).toFixed(2)}%
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section>
         <div className="flex items-end justify-between mb-5">
@@ -139,6 +203,10 @@ export default async function MarketsPage() {
                   {Math.abs(r.change24h).toFixed(2)}%
                 </div>
               </div>
+              <WatchlistStar
+                asset={r.info.symbol}
+                watching={watchedSet.has(r.info.symbol)}
+              />
             </Link>
           ))}
         </div>

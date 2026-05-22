@@ -28,6 +28,33 @@ model User {
   raffleEntries RaffleEntry[]
   raffleWins    RaffleRound[] @relation("RaffleWinner")
   notifications Notification[]
+  watchlist     Watchlist[]
+  priceAlerts   PriceAlert[]
+}
+
+model Watchlist {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset     String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, asset])
+}
+
+model PriceAlert {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset        String
+  direction    String   // "above" | "below"
+  targetUsd    Float
+  triggered    Boolean  @default(false)
+  triggeredAt  DateTime?
+  createdAt    DateTime @default(now())
+
+  @@index([userId, triggered])
+  @@index([asset, triggered])
 }
 
 model Notification {
