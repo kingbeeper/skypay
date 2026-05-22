@@ -87,47 +87,75 @@ export default async function CardPage() {
         </div>
       </div>
 
-      <section className="grid sm:grid-cols-3 gap-px bg-white/[0.06] rounded-2xl overflow-hidden border border-white/[0.06]">
-        <div className="bg-[color:var(--background)] p-6">
-          <div className="text-xs font-mono text-zinc-500 mb-2">Gastado este mes</div>
-          <div className="text-2xl font-semibold tracking-tight">
+      <section className="grid sm:grid-cols-3 gap-3">
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
+          <div className="mb-3">
+            <div className="font-medium">Gastado este mes</div>
+            <div className="text-xs text-zinc-500 mt-0.5">
+              de {formatUsd(card.monthlyLimit)} límite mensual
+            </div>
+          </div>
+          <div className="text-2xl font-semibold tracking-tight tabular-nums mb-3">
             {formatUsd(monthlySpent)}
           </div>
-          <div className="mt-3">
-            <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-cyan-400 to-indigo-500"
-                style={{
-                  width: `${Math.min(100, (monthlySpent / card.monthlyLimit) * 100)}%`,
-                }}
-              />
-            </div>
-            <div className="mt-1.5 text-xs text-zinc-500 font-mono">
-              límite {formatUsd(card.monthlyLimit)}
-            </div>
+          <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-cyan-400 to-indigo-500 transition-[width]"
+              style={{
+                width: `${Math.min(100, (monthlySpent / card.monthlyLimit) * 100)}%`,
+              }}
+            />
+          </div>
+          <div className="mt-1.5 text-[10px] font-mono text-zinc-600 text-right">
+            {((monthlySpent / card.monthlyLimit) * 100).toFixed(1)}% usado
           </div>
         </div>
-        <div className="bg-[color:var(--background)] p-6">
-          <div className="text-xs font-mono text-zinc-500 mb-2">Fuente de gasto</div>
-          <div className="text-2xl font-semibold tracking-tight">
-            {card.spendingSource}
+
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
+          <div className="mb-3">
+            <div className="font-medium">Fuente de gasto</div>
+            <div className="text-xs text-zinc-500 mt-0.5">
+              cripto desde donde se cobran las compras
+            </div>
           </div>
-          <div className="mt-1 text-xs text-zinc-500">
-            {formatAmount(balances[source], source)} {source} · {formatUsd(sourceUsdValue)}
+          <div className="flex items-baseline gap-2 mb-2">
+            <div className="text-2xl font-semibold tracking-tight">
+              {card.spendingSource}
+            </div>
+            <div className="text-xs font-mono text-zinc-500 tabular-nums">
+              {formatUsd(sourceUsdValue)}
+            </div>
+          </div>
+          <div className="text-xs font-mono text-zinc-500 tabular-nums">
+            saldo {formatAmount(balances[source], source)} {source}
           </div>
         </div>
-        <div className="bg-[color:var(--background)] p-6">
-          <div className="text-xs font-mono text-zinc-500 mb-2">Estado</div>
-          <div
-            className={`text-2xl font-semibold tracking-tight ${
-              card.status === "active" ? "text-emerald-300" : "text-amber-300"
-            }`}
-          >
-            {card.status === "active" ? "Activa" : "Congelada"}
+
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
+          <div className="mb-3">
+            <div className="font-medium">Estado</div>
+            <div className="text-xs text-zinc-500 mt-0.5">
+              {card.type === "virtual" ? "Tarjeta virtual" : "Tarjeta física"}
+              {card.physicalRequested &&
+                card.type === "virtual" &&
+                " · física en camino"}
+            </div>
           </div>
-          <div className="mt-1 text-xs text-zinc-500">
-            {card.type === "virtual" ? "Virtual" : "Física"}
-            {card.physicalRequested && card.type === "virtual" && " · física en camino"}
+          <div className="flex items-center gap-2">
+            <span
+              className={`inline-block h-2 w-2 rounded-full ${
+                card.status === "active"
+                  ? "bg-emerald-400 animate-pulse"
+                  : "bg-amber-400"
+              }`}
+            />
+            <div
+              className={`text-2xl font-semibold tracking-tight ${
+                card.status === "active" ? "text-emerald-300" : "text-amber-300"
+              }`}
+            >
+              {card.status === "active" ? "Activa" : "Congelada"}
+            </div>
           </div>
         </div>
       </section>

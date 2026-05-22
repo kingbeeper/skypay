@@ -23,9 +23,7 @@ export function CashbackSection({ cashbackPercent, transactions }: Props) {
     .filter((t) => t.createdAt >= monthStart && t.cashbackUsd > 0)
     .reduce((s, t) => s + t.cashbackUsd, 0);
 
-  const recent = transactions
-    .filter((t) => t.cashbackUsd > 0)
-    .slice(0, 5);
+  const recent = transactions.filter((t) => t.cashbackUsd > 0).slice(0, 5);
 
   return (
     <section>
@@ -38,40 +36,49 @@ export function CashbackSection({ cashbackPercent, transactions }: Props) {
         </h2>
       </div>
 
-      <div className="grid sm:grid-cols-3 gap-px bg-white/[0.06] rounded-2xl overflow-hidden border border-white/[0.06] mb-5">
-        <Stat
-          label="Ganado total"
-          value={formatUsd(totalEarned)}
-          accent
-        />
-        <Stat
-          label="Este mes"
-          value={formatUsd(thisMonth)}
-        />
-        <Stat
-          label="Tasa actual"
-          value={`${cashbackPercent.toFixed(1)}% USD`}
-        />
-      </div>
-
-      <div className="rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/[0.06] to-cyan-500/[0.03] p-5 mb-5">
-        <div className="flex items-start gap-3">
-          <span className="inline-flex h-9 w-9 shrink-0 rounded-full items-center justify-center bg-emerald-400/[0.15] text-emerald-300 text-lg">
-            $
-          </span>
-          <div>
-            <div className="font-medium">¿Cómo funciona?</div>
-            <p className="mt-1 text-xs text-zinc-400 leading-relaxed">
-              Por cada compra aprobada con la tarjeta recibes el{" "}
-              <strong>{cashbackPercent.toFixed(1)}%</strong> del importe en USD
-              acreditado al instante en tu balance. Sin límites mensuales. Se
-              acumula automáticamente.
-            </p>
+      <div className="grid sm:grid-cols-3 gap-3">
+        <div className="rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/[0.06] to-cyan-500/[0.03] p-5">
+          <div className="mb-3">
+            <div className="font-medium">Ganado total</div>
+            <div className="text-xs text-zinc-500 mt-0.5">
+              acumulado en todas las compras
+            </div>
           </div>
+          <div className="text-2xl font-semibold tracking-tight tabular-nums text-emerald-300">
+            {formatUsd(totalEarned)}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
+          <div className="mb-3">
+            <div className="font-medium">Este mes</div>
+            <div className="text-xs text-zinc-500 mt-0.5">
+              desde el día 1 del mes en curso
+            </div>
+          </div>
+          <div className="text-2xl font-semibold tracking-tight tabular-nums">
+            {formatUsd(thisMonth)}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-5">
+          <div className="mb-3">
+            <div className="font-medium">Cómo funciona</div>
+            <div className="text-xs text-zinc-500 mt-0.5">
+              cripto sin convertir, USDC en tu balance
+            </div>
+          </div>
+          <p className="text-xs text-zinc-400 leading-relaxed">
+            Recibes el{" "}
+            <span className="text-emerald-300 font-mono">
+              {cashbackPercent.toFixed(1)}%
+            </span>{" "}
+            de cada compra en USDC al instante. Sin límite mensual.
+          </p>
         </div>
       </div>
 
-      <div>
+      <div className="mt-5">
         <h3 className="text-xs font-mono uppercase tracking-wider text-zinc-400 mb-3">
           Últimos cashbacks
         </h3>
@@ -82,10 +89,7 @@ export function CashbackSection({ cashbackPercent, transactions }: Props) {
         ) : (
           <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden divide-y divide-white/[0.04]">
             {recent.map((t) => (
-              <div
-                key={t.id}
-                className="flex items-center gap-3 px-4 py-3"
-              >
+              <div key={t.id} className="flex items-center gap-3 px-4 py-3">
                 <span className="inline-flex h-8 w-8 shrink-0 rounded-full items-center justify-center bg-emerald-400/[0.12] text-emerald-300 font-mono text-xs font-semibold">
                   +$
                 </span>
@@ -115,30 +119,5 @@ export function CashbackSection({ cashbackPercent, transactions }: Props) {
         )}
       </div>
     </section>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string;
-  accent?: boolean;
-}) {
-  return (
-    <div className="bg-[color:var(--background)] p-5">
-      <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-500 mb-1">
-        {label}
-      </div>
-      <div
-        className={`text-xl font-semibold tracking-tight tabular-nums ${
-          accent ? "text-emerald-300" : ""
-        }`}
-      >
-        {value}
-      </div>
-    </div>
   );
 }
