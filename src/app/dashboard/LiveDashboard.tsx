@@ -163,31 +163,56 @@ export function LiveDashboard({ balances, initialPrices, kycStatus }: Props) {
               <span className="text-zinc-500 text-xs font-mono">24h</span>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Link
+          <div className="grid grid-cols-4 gap-2 sm:gap-3 sm:w-auto sm:flex">
+            <ActionIcon
               href="/dashboard/deposit"
-              className="h-10 inline-flex items-center px-5 rounded-full bg-white text-black text-sm font-medium hover:bg-zinc-200 transition-colors"
-            >
-              Depositar
-            </Link>
-            <Link
+              label="Depositar"
+              primary
+              icon={
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                  <path d="M12 3v12" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="4" y1="20" x2="20" y2="20" />
+                </svg>
+              }
+            />
+            <ActionIcon
               href="/dashboard/swap"
-              className="h-10 inline-flex items-center px-5 rounded-full border border-white/15 text-sm font-medium hover:bg-white/[0.04] transition-colors"
-            >
-              Swap
-            </Link>
-            <Link
+              label="Swap"
+              icon={
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                  <polyline points="7 4 7 20 3 16" />
+                  <polyline points="17 20 17 4 21 8" />
+                </svg>
+              }
+            />
+            <ActionIcon
               href="/dashboard/send"
-              className="h-10 inline-flex items-center px-5 rounded-full border border-white/15 text-sm font-medium hover:bg-white/[0.04] transition-colors"
-            >
-              Enviar
-            </Link>
-            <Link
+              label="Enviar"
+              icon={
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                  <line x1="22" y1="2" x2="11" y2="13" />
+                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
+              }
+            />
+            <ActionIcon
               href="/dashboard/receive"
-              className="h-10 inline-flex items-center px-5 rounded-full border border-white/15 text-sm font-medium hover:bg-white/[0.04] transition-colors"
-            >
-              Recibir
-            </Link>
+              label="Recibir"
+              icon={
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="3" y="14" width="7" height="7" rx="1" />
+                  <line x1="14" y1="14" x2="14" y2="17" />
+                  <line x1="14" y1="20" x2="14" y2="21" />
+                  <line x1="17" y1="14" x2="21" y2="14" />
+                  <line x1="20" y1="17" x2="21" y2="17" />
+                  <line x1="17" y1="21" x2="21" y2="21" />
+                  <line x1="17" y1="17" x2="17" y2="17" />
+                </svg>
+              }
+            />
           </div>
         </div>
       </section>
@@ -364,5 +389,39 @@ function Stat({
       </div>
       <div className="mt-1 text-xs text-zinc-500">{sub}</div>
     </div>
+  );
+}
+
+function ActionIcon({
+  href,
+  label,
+  icon,
+  primary,
+}: {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  primary?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      title={label}
+      aria-label={label}
+      className="group flex flex-col items-center gap-1.5 select-none"
+    >
+      <span
+        className={`inline-flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full transition-all ${
+          primary
+            ? "bg-gradient-to-br from-cyan-400 to-indigo-500 text-black group-hover:opacity-90 group-hover:scale-105 shadow-lg shadow-cyan-500/20"
+            : "border border-white/15 bg-white/[0.03] text-zinc-200 group-hover:bg-white/[0.08] group-hover:scale-105 group-hover:border-white/25"
+        }`}
+      >
+        {icon}
+      </span>
+      <span className="text-[11px] font-mono text-zinc-400 group-hover:text-zinc-200 transition-colors">
+        {label}
+      </span>
+    </Link>
   );
 }
