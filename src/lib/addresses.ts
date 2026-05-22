@@ -3,7 +3,13 @@ import type { AssetSymbol } from "./assets";
 export type CryptoAsset = Exclude<AssetSymbol, "USD">;
 
 export function isCryptoAsset(asset: string): asset is CryptoAsset {
-  return asset === "BTC" || asset === "ETH" || asset === "USDC" || asset === "SOL";
+  return (
+    asset === "BTC" ||
+    asset === "ETH" ||
+    asset === "USDC" ||
+    asset === "SOL" ||
+    asset === "LTC"
+  );
 }
 
 const BTC_RE = /^(bc1[a-z0-9]{25,87}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})$/;
