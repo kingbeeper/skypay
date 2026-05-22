@@ -14,6 +14,7 @@ export default async function SwapPage() {
     ETH: 0,
     USDC: 0,
     SOL: 0,
+    LTC: 0,
   };
   for (const b of user.balances) {
     if ((ASSET_LIST.map((a) => a.symbol) as string[]).includes(b.asset)) {
@@ -26,6 +27,7 @@ export default async function SwapPage() {
     ETH: prices.ETH.usd,
     USDC: prices.USDC.usd,
     SOL: prices.SOL.usd,
+    LTC: prices.LTC.usd,
   };
 
   return (

@@ -54,12 +54,29 @@ function syntheticMarketStats(info: AssetInfo, price: number) {
     const s = (seed + offset) >>> 0;
     return ((s % 10000) / 10000) * 0.6 + 0.7; // 0.7 to 1.3 multiplier
   };
+  const supply: Record<string, number> = {
+    BTC: 19_700_000,
+    ETH: 120_000_000,
+    SOL: 460_000_000,
+    USDC: 60_000_000_000,
+    LTC: 75_000_000,
+  };
+  const volMul: Record<string, number> = {
+    BTC: 25_000,
+    ETH: 350_000,
+    LTC: 200_000,
+  };
+  const athMul: Record<string, number> = {
+    BTC: 1.18,
+    ETH: 1.45,
+    LTC: 3.5,
+  };
   return {
-    marketCap: price * (info.symbol === "BTC" ? 19_700_000 : info.symbol === "ETH" ? 120_000_000 : info.symbol === "SOL" ? 460_000_000 : info.symbol === "USDC" ? 60_000_000_000 : 1) * rand(1),
-    volume24h: price * (info.symbol === "BTC" ? 25_000 : info.symbol === "ETH" ? 350_000 : 4_000_000) * rand(2),
+    marketCap: price * (supply[info.symbol] ?? 1) * rand(1),
+    volume24h: price * (volMul[info.symbol] ?? 4_000_000) * rand(2),
     high24h: price * (1 + 0.012 * rand(3)),
     low24h: price * (1 - 0.012 * rand(4)),
-    ath: price * (info.symbol === "BTC" ? 1.18 : info.symbol === "ETH" ? 1.45 : 1.6) * rand(5),
+    ath: price * (athMul[info.symbol] ?? 1.6) * rand(5),
   };
 }
 
@@ -226,6 +243,8 @@ export default async function AssetDetailPage({
             "USDC es un stablecoin respaldado 1:1 por dólares emitido por Circle. Existe en múltiples blockchains (Ethereum, Polygon, Base, Solana...) y se usa para evitar volatilidad."}
           {info.symbol === "SOL" &&
             "Solana es una blockchain de alto rendimiento conocida por su velocidad (<1s) y fees bajos. Su token nativo SOL paga gas y permite staking."}
+          {info.symbol === "LTC" &&
+            "Litecoin es una de las criptomonedas más antiguas (2011). Diseñada como una versión más rápida de Bitcoin, con bloques cada 2.5 min y un suministro máximo de 84M LTC."}
         </div>
         <div className="mt-2 text-xs font-mono text-zinc-600">
           ATH histórico: {formatUsd(stats.ath)}

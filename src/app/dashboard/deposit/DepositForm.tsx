@@ -29,6 +29,7 @@ const PRESETS_CRYPTO: Record<Exclude<AssetSymbol, "USDC">, number[]> = {
   BTC: [0.01, 0.05, 0.1, 0.5],
   ETH: [0.1, 0.5, 1, 5],
   SOL: [1, 5, 10, 50],
+  LTC: [0.5, 2, 5, 20],
 };
 
 export function DepositForm({ balances, prices, assets }: Props) {

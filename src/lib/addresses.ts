@@ -9,6 +9,7 @@ export function isCryptoAsset(asset: string): asset is CryptoAsset {
 const BTC_RE = /^(bc1[a-z0-9]{25,87}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})$/;
 const EVM_RE = /^0x[a-fA-F0-9]{40}$/;
 const SOL_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+const LTC_RE = /^(ltc1[a-z0-9]{25,87}|[LM3][a-km-zA-HJ-NP-Z1-9]{25,34})$/;
 
 export function isValidAddress(asset: CryptoAsset, address: string): boolean {
   const a = address.trim();
@@ -21,6 +22,8 @@ export function isValidAddress(asset: CryptoAsset, address: string): boolean {
       return EVM_RE.test(a);
     case "SOL":
       return SOL_RE.test(a);
+    case "LTC":
+      return LTC_RE.test(a);
   }
 }
 
@@ -34,6 +37,8 @@ export function networkLabel(asset: CryptoAsset): string {
       return "Ethereum · ERC-20";
     case "SOL":
       return "Solana";
+    case "LTC":
+      return "Litecoin";
   }
 }
 
@@ -46,6 +51,8 @@ export function addressPlaceholder(asset: CryptoAsset): string {
       return "0x…";
     case "SOL":
       return "Dirección Solana";
+    case "LTC":
+      return "ltc1q… o L… / M…";
   }
 }
 
@@ -78,6 +85,7 @@ function randomBase58(len: number): string {
 export function generateTxHash(asset: CryptoAsset): string {
   switch (asset) {
     case "BTC":
+    case "LTC":
       return randomHex(64);
     case "ETH":
     case "USDC":
@@ -89,7 +97,7 @@ export function generateTxHash(asset: CryptoAsset): string {
 
 // ----- Receive networks + deterministic deposit address derivation -----
 
-export type AddressFormat = "btc-bech32" | "evm" | "solana";
+export type AddressFormat = "btc-bech32" | "evm" | "solana" | "ltc-bech32";
 
 export type ReceiveNetwork = {
   id: string;
@@ -162,6 +170,15 @@ export const NETWORKS_BY_ASSET: Record<CryptoAsset, ReceiveNetwork[]> = {
       confirmationTime: "<1 segundo",
     },
   ],
+  LTC: [
+    {
+      id: "litecoin",
+      label: "Litecoin",
+      shortLabel: "Litecoin",
+      format: "ltc-bech32",
+      confirmationTime: "~2 min · 1 confirmación",
+    },
+  ],
 };
 
 const BECH32_ALPHABET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
@@ -212,8 +229,9 @@ export function deriveDepositAddress(
   const rng = xorshift32(fnv1a32(seed));
   switch (format) {
     case "btc-bech32":
-      // bc1q + 38 chars from bech32 alphabet = 42-char bech32 (typical P2WPKH)
       return "bc1q" + pickFromAlphabet(rng, BECH32_ALPHABET, 38);
+    case "ltc-bech32":
+      return "ltc1q" + pickFromAlphabet(rng, BECH32_ALPHABET, 38);
     case "evm":
       return "0x" + pickFromAlphabet(rng, HEX, 40);
     case "solana":

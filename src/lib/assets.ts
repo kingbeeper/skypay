@@ -1,4 +1,4 @@
-export type AssetSymbol = "BTC" | "ETH" | "USDC" | "SOL";
+export type AssetSymbol = "BTC" | "ETH" | "USDC" | "SOL" | "LTC";
 
 export type AssetInfo = {
   symbol: AssetSymbol;
@@ -41,6 +41,14 @@ export const ASSETS: Record<AssetSymbol, AssetInfo> = {
     coingeckoId: "solana",
     precision: 4,
     color: "#14f195",
+  },
+  LTC: {
+    symbol: "LTC",
+    name: "Litecoin",
+    kind: "crypto",
+    coingeckoId: "litecoin",
+    precision: 8,
+    color: "#345d9d",
   },
 };
 

@@ -50,6 +50,7 @@ const SUPPLY: Record<AssetSymbol, number> = {
   ETH: 120_000_000,
   USDC: 33_000_000_000,
   SOL: 460_000_000,
+  LTC: 75_000_000,
 };
 
 function synth7dChange(symbol: string, change24h: number): number {

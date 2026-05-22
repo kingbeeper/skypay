@@ -12,6 +12,7 @@ export default async function SendPage() {
     ETH: 0,
     USDC: 0,
     SOL: 0,
+    LTC: 0,
   };
   for (const b of user.balances) {
     if (b.asset in balances) {
@@ -24,6 +25,7 @@ export default async function SendPage() {
     ETH: prices.ETH.usd,
     USDC: prices.USDC.usd,
     SOL: prices.SOL.usd,
+    LTC: prices.LTC.usd,
   };
 
   return (

@@ -19,6 +19,7 @@ const BINANCE_STREAM_SYMBOLS: Record<string, AssetSymbol> = {
   BTCUSDT: "BTC",
   ETHUSDT: "ETH",
   SOLUSDT: "SOL",
+  LTCUSDT: "LTC",
 };
 
 type Props = {
@@ -130,6 +131,9 @@ export function LiveDashboard({ balances, initialPrices }: Props) {
     const price = prices[info.symbol]?.usd ?? 0;
     const change24h = prices[info.symbol]?.change24h ?? 0;
     const usdValue = amount * price;
+    // Dust threshold: anything below the smallest displayable unit (10^-precision)
+    // counts as zero. Avoids "0.0 BTC" lingering after a Max swap due to fp errors.
+    const dustThreshold = Math.pow(10, -info.precision);
     return {
       symbol: info.symbol,
       info,
@@ -137,7 +141,7 @@ export function LiveDashboard({ balances, initialPrices }: Props) {
       price,
       change24h,
       usdValue,
-      holding: amount > 0,
+      holding: amount >= dustThreshold,
     };
   });
   // Sort holdings first by USD value desc, then non-holdings alphabetically

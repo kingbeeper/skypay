@@ -20,6 +20,8 @@ export function CryptoIcon({ symbol, size = 32, className = "" }: Props) {
       return <UsdcIcon {...common} />;
     case "SOL":
       return <SolIcon {...common} />;
+    case "LTC":
+      return <LtcIcon {...common} />;
     default:
       return <FallbackIcon symbol={symbol} {...common} />;
   }
@@ -81,6 +83,19 @@ function SolIcon({ size, className }: { size: number; className?: string }) {
         <path d="M8.5 14.5 L21.5 14.5 L23.5 16.5 L10.5 16.5 Z" />
         <path d="M8.5 18.5 L21.5 18.5 L23.5 20.5 L10.5 20.5 Z" />
       </g>
+    </svg>
+  );
+}
+
+function LtcIcon({ size, className }: { size: number; className?: string }) {
+  return (
+    <svg viewBox="0 0 32 32" width={size} height={size} className={className} aria-hidden>
+      <circle cx="16" cy="16" r="16" fill="#345d9d" />
+      {/* Stylized Ł — vertical leg + diagonal crossbar + horizontal foot */}
+      <path
+        d="M 14.5 7 L 17.8 7 L 15.6 14.6 L 19 13.5 L 18.3 16.2 L 14.9 17.3 L 13.6 22 L 22 22 L 21.2 25 L 10 25 L 12 18 L 9.6 18.8 L 10.3 16.1 L 12.7 15.3 L 14.5 7 Z"
+        fill="white"
+      />
     </svg>
   );
 }

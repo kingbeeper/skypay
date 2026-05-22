@@ -25,6 +25,7 @@ export async function fetchPrices(
     ETH: { usd: 0, change24h: 0 },
     USDC: { usd: 1, change24h: 0 },
     SOL: { usd: 0, change24h: 0 },
+    LTC: { usd: 0, change24h: 0 },
   };
 
   try {
@@ -66,5 +67,6 @@ function withFallback(prices: PriceMap): PriceMap {
   if (prices.BTC.usd === 0) prices.BTC = { usd: 97000, change24h: 0 };
   if (prices.ETH.usd === 0) prices.ETH = { usd: 3400, change24h: 0 };
   if (prices.SOL.usd === 0) prices.SOL = { usd: 180, change24h: 0 };
+  if (prices.LTC.usd === 0) prices.LTC = { usd: 110, change24h: 0 };
   return prices;
 }

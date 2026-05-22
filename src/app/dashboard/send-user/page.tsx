@@ -10,6 +10,7 @@ export default async function SendUserPage() {
     ETH: 0,
     USDC: 0,
     SOL: 0,
+    LTC: 0,
   };
   for (const b of user.balances) {
     if (b.asset in balances) {

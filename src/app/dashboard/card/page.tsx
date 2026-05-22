@@ -45,6 +45,7 @@ export default async function CardPage() {
     ETH: 0,
     USDC: 0,
     SOL: 0,
+    LTC: 0,
   };
   for (const b of balancesArray) {
     if (b.asset in balances) balances[b.asset as AssetSymbol] = b.amount;

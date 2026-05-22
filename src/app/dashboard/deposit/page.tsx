@@ -15,6 +15,7 @@ export default async function DepositPage() {
     ETH: 0,
     USDC: 0,
     SOL: 0,
+    LTC: 0,
   };
   for (const b of user.balances) {
     if (b.asset in balances) balances[b.asset as AssetSymbol] = b.amount;
@@ -25,6 +26,7 @@ export default async function DepositPage() {
     ETH: prices.ETH.usd,
     USDC: prices.USDC.usd,
     SOL: prices.SOL.usd,
+    LTC: prices.LTC.usd,
   };
 
   return (
