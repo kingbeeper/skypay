@@ -233,47 +233,54 @@ export default async function RafflePage() {
         </div>
       </section>
 
-      <section>
-        <div className="flex items-end justify-between mb-5">
-          <h2 className="text-xl font-semibold tracking-tight">
-            Ranking de la ronda
-          </h2>
-          <span className="text-xs font-mono text-zinc-500">
-            top 10 · {totalTickets.toLocaleString("es-ES")} tickets en juego
-          </span>
-        </div>
-        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden divide-y divide-white/[0.04]">
-          {leaderboard.map((row) => (
-            <LeaderboardRow
-              key={`${row.rank}-${row.label}`}
-              rank={row.rank}
-              label={row.label}
-              tickets={row.tickets}
-              poolTotal={totalTickets}
-              isUser={row.isUser}
-            />
-          ))}
-          {myLeaderboardEntry && (
-            <>
-              <div className="px-5 py-2 text-center text-[10px] font-mono text-zinc-600">
-                ···
-              </div>
-              <LeaderboardRow
-                rank={null}
-                label={myLeaderboardEntry.label}
-                tickets={myLeaderboardEntry.tickets}
-                poolTotal={totalTickets}
-                isUser
-              />
-            </>
-          )}
-          {leaderboard.length === 0 && (
-            <div className="px-5 py-10 text-center text-zinc-500 text-sm">
-              Aún no hay tickets vendidos.
+      {user.isAdmin && (
+        <section>
+          <div className="flex items-end justify-between mb-5">
+            <div>
+              <h2 className="text-xl font-semibold tracking-tight">
+                Ranking de la ronda
+              </h2>
+              <p className="text-[10px] font-mono uppercase tracking-wider text-rose-400/70 mt-1">
+                visible solo para admin
+              </p>
             </div>
-          )}
-        </div>
-      </section>
+            <span className="text-xs font-mono text-zinc-500">
+              top 10 · {totalTickets.toLocaleString("es-ES")} tickets en juego
+            </span>
+          </div>
+          <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden divide-y divide-white/[0.04]">
+            {leaderboard.map((row) => (
+              <LeaderboardRow
+                key={`${row.rank}-${row.label}`}
+                rank={row.rank}
+                label={row.label}
+                tickets={row.tickets}
+                poolTotal={totalTickets}
+                isUser={row.isUser}
+              />
+            ))}
+            {myLeaderboardEntry && (
+              <>
+                <div className="px-5 py-2 text-center text-[10px] font-mono text-zinc-600">
+                  ···
+                </div>
+                <LeaderboardRow
+                  rank={null}
+                  label={myLeaderboardEntry.label}
+                  tickets={myLeaderboardEntry.tickets}
+                  poolTotal={totalTickets}
+                  isUser
+                />
+              </>
+            )}
+            {leaderboard.length === 0 && (
+              <div className="px-5 py-10 text-center text-zinc-500 text-sm">
+                Aún no hay tickets vendidos.
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {pastRounds.length > 0 && (
         <section>
