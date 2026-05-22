@@ -328,28 +328,19 @@ export function LiveDashboard({ balances, initialPrices }: Props) {
                   </div>
                 </div>
 
-                {/* Holding value (only if holds) */}
-                <div className="text-right shrink-0 hidden sm:block min-w-[110px] border-l border-white/[0.04] pl-4">
-                  {r.holding ? (
-                    <>
-                      <div className="font-mono font-semibold tabular-nums">
-                        <span
-                          key={`v-${flashKey}`}
-                          className={`inline-block px-1.5 py-0.5 -mx-1.5 -my-0.5 rounded ${flashClass}`}
-                        >
-                          {formatUsd(r.usdValue)}
-                        </span>
-                      </div>
-                      <div className="text-[10px] font-mono text-zinc-500 mt-0.5">
-                        tu posición
-                      </div>
-                    </>
-                  ) : (
-                    <div className="text-[11px] font-mono text-zinc-600">
-                      sin posición
+                {/* Holding value — only renders when the user actually holds the asset */}
+                {r.holding && (
+                  <div className="text-right shrink-0 hidden sm:block min-w-[100px] border-l border-white/[0.04] pl-4">
+                    <div className="font-mono font-semibold tabular-nums">
+                      <span
+                        key={`v-${flashKey}`}
+                        className={`inline-block px-1.5 py-0.5 -mx-1.5 -my-0.5 rounded ${flashClass}`}
+                      >
+                        {formatUsd(r.usdValue)}
+                      </span>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
 
                 <svg
                   viewBox="0 0 24 24"
