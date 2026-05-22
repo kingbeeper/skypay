@@ -1223,6 +1223,119 @@ export async function deleteOwnAccountAction(
   redirect("/");
 }
 
+// ----- Admin webhooks -----
+
+export type WebhookCreateResult =
+  | { ok: true; id: string }
+  | { ok: false; error: string }
+  | undefined;
+
+export async function createWebhookAction(
+  _prev: WebhookCreateResult,
+  formData: FormData
+): Promise<WebhookCreateResult> {
+  const me = await getCurrentUser();
+  if (!me || !me.isAdmin) return { ok: false, error: "Sin permisos" };
+
+  const name = String(formData.get("name") ?? "").trim();
+  const url = String(formData.get("url") ?? "").trim();
+  const secret = String(formData.get("secret") ?? "").trim() || null;
+
+  if (!name) return { ok: false, error: "Nombre requerido" };
+  if (!/^https?:\/\/.+/.test(url)) {
+    return { ok: false, error: "URL inválida (debe empezar con http:// o https://)" };
+  }
+
+  const webhook = await prisma.webhook.create({
+    data: { name, url, secret },
+  });
+
+  revalidatePath("/dashboard/admin/webhooks");
+  return { ok: true, id: webhook.id };
+}
+
+export async function toggleWebhookAction(formData: FormData) {
+  const me = await getCurrentUser();
+  if (!me || !me.isAdmin) return;
+  const id = String(formData.get("id") ?? "");
+  const enabled = String(formData.get("enabled") ?? "") === "true";
+  await prisma.webhook.update({
+    where: { id },
+    data: { enabled },
+  });
+  revalidatePath("/dashboard/admin/webhooks");
+}
+
+export async function deleteWebhookAction(formData: FormData) {
+  const me = await getCurrentUser();
+  if (!me || !me.isAdmin) return;
+  const id = String(formData.get("id") ?? "");
+  await prisma.webhook.delete({ where: { id } });
+  revalidatePath("/dashboard/admin/webhooks");
+}
+
+export type FireWebhookResult =
+  | { ok: true; status: string }
+  | { ok: false; error: string }
+  | undefined;
+
+export async function fireTestWebhookAction(
+  _prev: FireWebhookResult,
+  formData: FormData
+): Promise<FireWebhookResult> {
+  const me = await getCurrentUser();
+  if (!me || !me.isAdmin) return { ok: false, error: "Sin permisos" };
+
+  const id = String(formData.get("id") ?? "");
+  const eventType = String(formData.get("eventType") ?? "test.ping");
+
+  const webhook = await prisma.webhook.findUnique({ where: { id } });
+  if (!webhook) return { ok: false, error: "Webhook no encontrado" };
+  if (!webhook.enabled) return { ok: false, error: "Webhook deshabilitado" };
+
+  const payload = {
+    event: eventType,
+    timestamp: new Date().toISOString(),
+    data: { triggeredBy: me.email, demo: true },
+  };
+  const payloadStr = JSON.stringify(payload);
+
+  let status: string = "delivered";
+  try {
+    const res = await fetch(webhook.url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Skypay-Event": eventType,
+        ...(webhook.secret ? { "X-Skypay-Signature": webhook.secret } : {}),
+      },
+      body: payloadStr,
+      signal: AbortSignal.timeout(5000),
+    });
+    status = res.ok ? "delivered" : `failed:${res.status}`;
+  } catch (err) {
+    status = `error:${err instanceof Error ? err.name : "unknown"}`;
+  }
+
+  await prisma.$transaction([
+    prisma.webhook.update({
+      where: { id },
+      data: { lastFiredAt: new Date() },
+    }),
+    prisma.webhookEvent.create({
+      data: {
+        webhookId: id,
+        eventType,
+        status,
+        payload: payloadStr,
+      },
+    }),
+  ]);
+
+  revalidatePath("/dashboard/admin/webhooks");
+  return { ok: true, status };
+}
+
 export async function adminForceDrawAction() {
   const me = await getCurrentUser();
   if (!me || !me.isAdmin) return;

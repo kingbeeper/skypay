@@ -108,6 +108,29 @@ export default async function AdminPage() {
 
         <div className="mt-5 flex flex-wrap gap-2">
           <Link
+            href="/dashboard/admin/webhooks"
+            className="inline-flex h-10 items-center gap-2 rounded-full border border-white/15 px-5 text-sm font-medium hover:bg-white/[0.04] transition-colors"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <circle cx="18" cy="6" r="3" />
+              <circle cx="6" cy="18" r="3" />
+              <circle cx="6" cy="6" r="3" />
+              <line x1="6" y1="9" x2="6" y2="15" />
+              <line x1="9" y1="6" x2="15" y2="6" />
+              <line x1="8.5" y1="15.5" x2="15.5" y2="8.5" />
+            </svg>
+            Webhooks
+          </Link>
+          <Link
             href="/dashboard/admin/users/new"
             className="inline-flex h-10 items-center gap-2 rounded-full bg-white text-black px-5 text-sm font-medium hover:bg-zinc-200 transition-colors"
           >

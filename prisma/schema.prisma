@@ -40,6 +40,29 @@ model Notification {
   @@index([userId, read])
 }
 
+model Webhook {
+  id          String         @id @default(cuid())
+  name        String
+  url         String
+  enabled     Boolean        @default(true)
+  secret      String?
+  createdAt   DateTime       @default(now())
+  lastFiredAt DateTime?
+  events      WebhookEvent[]
+}
+
+model WebhookEvent {
+  id        String   @id @default(cuid())
+  webhookId String
+  webhook   Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  eventType String
+  status    String   @default("delivered")
+  payload   String
+  createdAt DateTime @default(now())
+
+  @@index([webhookId, createdAt])
+}
+
 model Card {
   id                String            @id @default(cuid())
   userId            String
