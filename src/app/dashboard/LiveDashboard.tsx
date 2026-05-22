@@ -182,6 +182,12 @@ export function LiveDashboard({ balances, initialPrices, kycStatus }: Props) {
             >
               Enviar
             </Link>
+            <Link
+              href="/dashboard/receive"
+              className="h-10 inline-flex items-center px-5 rounded-full border border-white/15 text-sm font-medium hover:bg-white/[0.04] transition-colors"
+            >
+              Recibir
+            </Link>
           </div>
         </div>
       </section>

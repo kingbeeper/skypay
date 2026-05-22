@@ -86,3 +86,137 @@ export function generateTxHash(asset: CryptoAsset): string {
       return randomBase58(88);
   }
 }
+
+// ----- Receive networks + deterministic deposit address derivation -----
+
+export type AddressFormat = "btc-bech32" | "evm" | "solana";
+
+export type ReceiveNetwork = {
+  id: string;
+  label: string;
+  shortLabel: string;
+  format: AddressFormat;
+  confirmationTime: string;
+  warning?: string;
+};
+
+export const NETWORKS_BY_ASSET: Record<CryptoAsset, ReceiveNetwork[]> = {
+  BTC: [
+    {
+      id: "bitcoin",
+      label: "Bitcoin",
+      shortLabel: "Bitcoin",
+      format: "btc-bech32",
+      confirmationTime: "~10 min · 1 confirmación",
+    },
+  ],
+  ETH: [
+    {
+      id: "ethereum",
+      label: "Ethereum mainnet",
+      shortLabel: "Ethereum",
+      format: "evm",
+      confirmationTime: "~15 segundos",
+    },
+  ],
+  USDC: [
+    {
+      id: "ethereum",
+      label: "Ethereum · ERC-20",
+      shortLabel: "Ethereum",
+      format: "evm",
+      confirmationTime: "~15 segundos",
+      warning: "Solo envíes USDC ERC-20 a esta dirección.",
+    },
+    {
+      id: "polygon",
+      label: "Polygon · PoS",
+      shortLabel: "Polygon",
+      format: "evm",
+      confirmationTime: "~2 segundos",
+      warning: "Solo envíes USDC en red Polygon.",
+    },
+    {
+      id: "base",
+      label: "Base",
+      shortLabel: "Base",
+      format: "evm",
+      confirmationTime: "~2 segundos",
+      warning: "Solo envíes USDC en red Base.",
+    },
+    {
+      id: "solana",
+      label: "Solana · SPL",
+      shortLabel: "Solana",
+      format: "solana",
+      confirmationTime: "<1 segundo",
+      warning: "Solo envíes USDC SPL (Solana). USDC de otra red se perderá.",
+    },
+  ],
+  SOL: [
+    {
+      id: "solana",
+      label: "Solana",
+      shortLabel: "Solana",
+      format: "solana",
+      confirmationTime: "<1 segundo",
+    },
+  ],
+};
+
+const BECH32_ALPHABET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+
+function fnv1a32(str: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function* xorshift32(seed: number): Generator<number> {
+  let s = (seed | 0) || 1;
+  while (true) {
+    s ^= s << 13;
+    s ^= s >>> 17;
+    s ^= s << 5;
+    yield s >>> 0;
+  }
+}
+
+function pickFromAlphabet(
+  rng: Generator<number>,
+  alphabet: string,
+  count: number
+): string {
+  let out = "";
+  for (let i = 0; i < count; i++) {
+    const next = rng.next().value;
+    if (typeof next !== "number") break;
+    out += alphabet[next % alphabet.length];
+  }
+  return out;
+}
+
+const HEX = "0123456789abcdef";
+
+/**
+ * Deterministically derive a format-valid (but on-chain meaningless) demo
+ * deposit address from a seed string. Same seed → same address every call.
+ */
+export function deriveDepositAddress(
+  seed: string,
+  format: AddressFormat
+): string {
+  const rng = xorshift32(fnv1a32(seed));
+  switch (format) {
+    case "btc-bech32":
+      // bc1q + 38 chars from bech32 alphabet = 42-char bech32 (typical P2WPKH)
+      return "bc1q" + pickFromAlphabet(rng, BECH32_ALPHABET, 38);
+    case "evm":
+      return "0x" + pickFromAlphabet(rng, HEX, 40);
+    case "solana":
+      return pickFromAlphabet(rng, BASE58_ALPHABET, 44);
+  }
+}
