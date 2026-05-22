@@ -6,6 +6,7 @@ import { BackButton } from "./BackButton";
 import { ThemeToggle } from "./ThemeToggle";
 import { NotificationBell } from "./NotificationBell";
 import { OnboardingTour } from "./OnboardingTour";
+import { CommandPalette } from "./CommandPalette";
 import { getTheme } from "@/lib/theme";
 
 const baseNavItems: NavItem[] = [
@@ -113,6 +114,7 @@ export default async function DashboardLayout({
         {children}
       </main>
       <OnboardingTour />
+      <CommandPalette />
     </div>
   );
 }
