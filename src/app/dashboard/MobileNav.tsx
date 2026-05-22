@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -21,7 +22,11 @@ type Props = {
 
 export function MobileNav({ items, userEmail, isDemo, isAdmin }: Props) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- portal requires document.body which only exists client-side
+  useEffect(() => setMounted(true), []);
 
   // Body scroll lock + escape-to-close while open
   useEffect(() => {
@@ -38,34 +43,13 @@ export function MobileNav({ items, userEmail, isDemo, isAdmin }: Props) {
     };
   }, [open]);
 
-  return (
+  const overlay = (
     <>
-      <button
-        type="button"
-        aria-label="Abrir menú"
-        aria-expanded={open}
-        onClick={() => setOpen(true)}
-        className="md:hidden h-9 w-9 inline-flex items-center justify-center rounded-full border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] transition-colors"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          className="h-4 w-4"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-        >
-          <line x1="4" y1="7" x2="20" y2="7" />
-          <line x1="4" y1="12" x2="20" y2="12" />
-          <line x1="4" y1="17" x2="20" y2="17" />
-        </svg>
-      </button>
-
       {/* backdrop */}
       <div
         onClick={() => setOpen(false)}
         aria-hidden
-        className={`fixed inset-0 z-40 bg-black/60 backdrop-blur-sm transition-opacity duration-200 md:hidden ${
+        className={`fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm transition-opacity duration-200 md:hidden ${
           open ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
       />
@@ -75,7 +59,7 @@ export function MobileNav({ items, userEmail, isDemo, isAdmin }: Props) {
         role="dialog"
         aria-modal="true"
         aria-label="Menú principal"
-        className={`fixed inset-y-0 left-0 z-50 w-80 max-w-[85vw] bg-[color:var(--background)] border-r border-white/10 flex flex-col md:hidden transform transition-transform duration-200 ease-out ${
+        className={`fixed inset-y-0 left-0 z-[110] w-80 max-w-[85vw] bg-[color:var(--background)] border-r border-white/10 flex flex-col md:hidden transform transition-transform duration-200 ease-out ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -112,10 +96,16 @@ export function MobileNav({ items, userEmail, isDemo, isAdmin }: Props) {
             const tone = item.soon
               ? "text-zinc-600 cursor-not-allowed"
               : item.admin
-                ? `${active ? "bg-rose-400/[0.08] text-rose-200" : "text-rose-300 hover:bg-rose-400/[0.06]"}`
+                ? active
+                  ? "bg-rose-400/[0.08] text-rose-200"
+                  : "text-rose-300 hover:bg-rose-400/[0.06]"
                 : item.highlight
-                  ? `${active ? "bg-amber-400/[0.08] text-amber-200" : "text-amber-300 hover:bg-amber-400/[0.06]"}`
-                  : `${active ? "bg-white/[0.06] text-white" : "text-zinc-300 hover:bg-white/[0.04]"}`;
+                  ? active
+                    ? "bg-amber-400/[0.08] text-amber-200"
+                    : "text-amber-300 hover:bg-amber-400/[0.06]"
+                  : active
+                    ? "bg-white/[0.06] text-white"
+                    : "text-zinc-300 hover:bg-white/[0.04]";
             return (
               <Link
                 key={item.href}
@@ -173,6 +163,32 @@ export function MobileNav({ items, userEmail, isDemo, isAdmin }: Props) {
           </div>
         </div>
       </aside>
+    </>
+  );
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="Abrir menú"
+        aria-expanded={open}
+        onClick={() => setOpen(true)}
+        className="md:hidden h-9 w-9 inline-flex items-center justify-center rounded-full border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] transition-colors shrink-0"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          className="h-4 w-4"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        >
+          <line x1="4" y1="7" x2="20" y2="7" />
+          <line x1="4" y1="12" x2="20" y2="12" />
+          <line x1="4" y1="17" x2="20" y2="17" />
+        </svg>
+      </button>
+      {mounted && createPortal(overlay, document.body)}
     </>
   );
 }
