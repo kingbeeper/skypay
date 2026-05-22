@@ -3,6 +3,8 @@ import { requireUser } from "@/lib/auth";
 import { logoutAction } from "@/app/actions";
 import { MobileNav, type NavItem } from "./MobileNav";
 import { BackButton } from "./BackButton";
+import { ThemeToggle } from "./ThemeToggle";
+import { getTheme } from "@/lib/theme";
 
 const baseNavItems: NavItem[] = [
   { href: "/dashboard", label: "Resumen" },
@@ -21,6 +23,7 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const user = await requireUser();
+  const theme = await getTheme();
   const navItems: NavItem[] = user.isAdmin
     ? [
         ...baseNavItems,
@@ -89,6 +92,7 @@ export default async function DashboardLayout({
             <span className="hidden lg:inline text-sm text-zinc-400 font-mono truncate max-w-[220px]">
               {user.email}
             </span>
+            <ThemeToggle current={theme} />
             <form action={logoutAction}>
               <button
                 type="submit"

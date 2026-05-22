@@ -21,6 +21,7 @@ import {
   isValidAddress,
   shortenAddress,
 } from "@/lib/addresses";
+import { setThemeCookie, type Theme } from "@/lib/theme";
 
 export type AuthResult = { error: string } | undefined;
 export type SwapResult =
@@ -935,6 +936,11 @@ export async function deleteUserAction(
   revalidatePath("/dashboard/admin");
 
   return { ok: true, email: target.email };
+}
+
+export async function setThemeAction(theme: Theme) {
+  await setThemeCookie(theme);
+  revalidatePath("/", "layout");
 }
 
 export async function adminForceDrawAction() {

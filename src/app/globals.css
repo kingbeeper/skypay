@@ -11,6 +11,26 @@
   --muted: #8b8b97;
   --positive: #22c55e;
   --negative: #ef4444;
+  --grid-line: rgba(255, 255, 255, 0.04);
+  --body-radial-1: rgba(34, 211, 238, 0.12);
+  --body-radial-2: rgba(129, 140, 248, 0.08);
+}
+
+html[data-theme="light"] {
+  --background: #f7f7f9;
+  --foreground: #18181d;
+  --surface: #ffffff;
+  --surface-2: #f0f0f3;
+  --border: rgba(0, 0, 0, 0.08);
+  --accent: #0891b2;
+  --accent-2: #6366f1;
+  --muted: #71717a;
+  --positive: #16a34a;
+  --negative: #dc2626;
+  --grid-line: rgba(0, 0, 0, 0.05);
+  --body-radial-1: rgba(34, 211, 238, 0.08);
+  --body-radial-2: rgba(99, 102, 241, 0.05);
+  color-scheme: light;
 }
 
 @theme inline {
@@ -37,18 +57,59 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   background-image:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(34, 211, 238, 0.12), transparent 60%),
-    radial-gradient(ellipse 60% 40% at 80% 30%, rgba(129, 140, 248, 0.08), transparent 60%);
+    radial-gradient(ellipse 80% 50% at 50% -10%, var(--body-radial-1), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 30%, var(--body-radial-2), transparent 60%);
   background-attachment: fixed;
 }
 
 .grid-bg {
   background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
   background-size: 48px 48px;
   mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black 30%, transparent 80%);
 }
+
+/* ============================================================
+   Light-mode utility overrides
+   The app is built on Tailwind utilities tuned for dark mode
+   (white-on-black). In light mode we flip the most common ones
+   so content stays readable without rewriting every component.
+   ============================================================ */
+html[data-theme="light"] .text-white { color: rgb(15 15 20); }
+html[data-theme="light"] .text-zinc-100 { color: rgb(24 24 27); }
+html[data-theme="light"] .text-zinc-200 { color: rgb(39 39 42); }
+html[data-theme="light"] .text-zinc-300 { color: rgb(63 63 70); }
+html[data-theme="light"] .text-zinc-400 { color: rgb(82 82 91); }
+html[data-theme="light"] .text-zinc-500 { color: rgb(113 113 122); }
+html[data-theme="light"] .text-zinc-600 { color: rgb(161 161 170); }
+html[data-theme="light"] .text-zinc-700 { color: rgb(212 212 216); }
+
+html[data-theme="light"] .bg-white { background-color: rgb(24 24 27); color: rgb(255 255 255); }
+html[data-theme="light"] .hover\:bg-zinc-200:hover { background-color: rgb(39 39 42); }
+
+/* white/X opacity backgrounds → switch to black/X */
+html[data-theme="light"] .bg-white\/\[0\.02\] { background-color: rgb(0 0 0 / 0.025); }
+html[data-theme="light"] .bg-white\/\[0\.03\] { background-color: rgb(0 0 0 / 0.04); }
+html[data-theme="light"] .bg-white\/\[0\.04\] { background-color: rgb(0 0 0 / 0.05); }
+html[data-theme="light"] .bg-white\/\[0\.06\] { background-color: rgb(0 0 0 / 0.07); }
+html[data-theme="light"] .bg-white\/\[0\.08\] { background-color: rgb(0 0 0 / 0.09); }
+html[data-theme="light"] .hover\:bg-white\/\[0\.02\]:hover { background-color: rgb(0 0 0 / 0.03); }
+html[data-theme="light"] .hover\:bg-white\/\[0\.04\]:hover { background-color: rgb(0 0 0 / 0.05); }
+html[data-theme="light"] .hover\:bg-white\/\[0\.06\]:hover { background-color: rgb(0 0 0 / 0.07); }
+
+/* borders */
+html[data-theme="light"] .border-white\/10 { border-color: rgb(0 0 0 / 0.12); }
+html[data-theme="light"] .border-white\/15 { border-color: rgb(0 0 0 / 0.16); }
+html[data-theme="light"] .border-white\/\[0\.06\] { border-color: rgb(0 0 0 / 0.08); }
+html[data-theme="light"] .border-white\/\[0\.08\] { border-color: rgb(0 0 0 / 0.10); }
+html[data-theme="light"] .divide-white\/\[0\.04\] > * + * { border-color: rgb(0 0 0 / 0.06); }
+html[data-theme="light"] .divide-white\/\[0\.06\] > * + * { border-color: rgb(0 0 0 / 0.08); }
+
+/* dark surface used by Kpi / Stat cards on dark mode */
+html[data-theme="light"] .bg-\[color\:var\(--background\)\] { background-color: var(--surface); }
+html[data-theme="light"] .bg-\[color\:var\(--background\)\]\/70 { background-color: rgb(255 255 255 / 0.7); }
+html[data-theme="light"] .bg-\[color\:var\(--background\)\]\/85 { background-color: rgb(255 255 255 / 0.85); }
 
 @keyframes price-flash-up {
   from { background-color: rgba(52, 211, 153, 0.18); }
