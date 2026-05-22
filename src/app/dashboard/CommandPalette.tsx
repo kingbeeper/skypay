@@ -25,6 +25,7 @@ const COMMANDS: Command[] = [
   { id: "nav-card", label: "Tarjeta", href: "/dashboard/card", group: "Ir a", keywords: ["visa", "pagar"] },
   { id: "nav-raffle", label: "Rifa", href: "/dashboard/raffle", group: "Ir a", keywords: ["lottery", "sorteo", "bitcoin"] },
   { id: "nav-history", label: "Historial", href: "/dashboard/history", group: "Ir a", keywords: ["transacciones", "movimientos"] },
+  { id: "nav-refer", label: "Referidos", href: "/dashboard/refer", group: "Ir a", keywords: ["invitar", "amigos", "bonus"] },
   { id: "nav-settings", label: "Ajustes", href: "/dashboard/settings", group: "Ir a", keywords: ["configuracion", "perfil", "seguridad"] },
 
   // Quick actions

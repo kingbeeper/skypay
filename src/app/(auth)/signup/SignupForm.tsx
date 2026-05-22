@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useSearchParams } from "next/navigation";
 import { signupAction, type AuthResult } from "@/app/actions";
 
 export function SignupForm() {
@@ -8,9 +9,19 @@ export function SignupForm() {
     signupAction,
     undefined
   );
+  const searchParams = useSearchParams();
+  const ref = searchParams.get("ref")?.toUpperCase() ?? "";
 
   return (
     <form action={formAction} className="space-y-3">
+      {ref && <input type="hidden" name="ref" value={ref} />}
+      {ref && (
+        <div className="rounded-xl border border-cyan-400/30 bg-cyan-400/[0.06] px-3 py-2 text-xs text-cyan-200">
+          🎁 Te registras con código{" "}
+          <span className="font-mono font-bold">{ref}</span> — recibirás $10
+          de bienvenida.
+        </div>
+      )}
       <Field label="Nombre" name="name" type="text" autoFocus />
       <Field label="Correo" name="email" type="email" required />
       <Field

@@ -20,6 +20,7 @@ const baseNavItems: NavItem[] = [
   { href: "/dashboard/card", label: "Tarjeta" },
   { href: "/dashboard/raffle", label: "Rifa", highlight: true },
   { href: "/dashboard/history", label: "Historial" },
+  { href: "/dashboard/refer", label: "Referidos" },
   { href: "/dashboard/settings", label: "Ajustes" },
 ];
 

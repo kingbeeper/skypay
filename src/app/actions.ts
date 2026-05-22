@@ -25,6 +25,8 @@ import { setThemeCookie, type Theme } from "@/lib/theme";
 import { notify } from "@/lib/notifications";
 import { generateTotpSecret, totpUri, verifyTotp } from "@/lib/totp";
 import { logAudit } from "@/lib/audit";
+import { grantAchievement } from "@/lib/achievements";
+import { ensureReferralCode } from "@/lib/referral";
 
 export type AuthResult = { error: string } | undefined;
 export type SwapResult =
@@ -53,6 +55,21 @@ export async function signupAction(
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) return { error: "Ya existe una cuenta con ese correo" };
 
+  const ref = String(formData.get("ref") ?? "").trim().toUpperCase();
+
+  let referredById: string | null = null;
+  let initialUsd = 0;
+  if (ref) {
+    const referrer = await prisma.user.findUnique({
+      where: { referralCode: ref },
+      select: { id: true },
+    });
+    if (referrer) {
+      referredById = referrer.id;
+      initialUsd = 10; // welcome bonus for using a referral code
+    }
+  }
+
   const passwordHash = await bcrypt.hash(password, 10);
   const user = await prisma.user.create({
     data: {
@@ -60,11 +77,28 @@ export async function signupAction(
       passwordHash,
       name,
       kycStatus: "approved",
+      referredById,
       balances: {
-        create: [{ asset: "USD", amount: 0 }],
+        create: [{ asset: "USD", amount: initialUsd }],
       },
     },
   });
+
+  // Reward the referrer too
+  if (referredById) {
+    await prisma.balance.upsert({
+      where: { userId_asset: { userId: referredById, asset: "USD" } },
+      update: { amount: { increment: 10 } },
+      create: { userId: referredById, asset: "USD", amount: 10 },
+    });
+    await notify({
+      userId: referredById,
+      type: "referral",
+      title: `Bonus de referido · +$10`,
+      body: `${email} se registró con tu código.`,
+      link: "/dashboard/refer",
+    });
+  }
 
   const session = await getSession();
   session.userId = user.id;
@@ -204,6 +238,10 @@ export async function loginAction(
     },
   });
 
+  if (newStreak >= 7) {
+    grantAchievement(user.id, "streak_7").catch(() => {});
+  }
+
   // Fire-and-forget login alert (don't block login if notify fails)
   notify({
     userId: user.id,
@@ -314,6 +352,8 @@ export async function swapAction(
     }),
   ]);
 
+  grantAchievement(user.id, "first_swap").catch(() => {});
+
   await notify({
     userId: user.id,
     type: "swap",
@@ -413,6 +453,8 @@ export async function sendP2PAction(
     }),
   ]);
 
+  grantAchievement(sender.id, "first_p2p").catch(() => {});
+
   await notify({
     userId: recipient.id,
     type: "p2p_receive",
@@ -491,6 +533,8 @@ export async function sendCryptoAction(
     }),
   ]);
 
+  grantAchievement(user.id, "first_send").catch(() => {});
+
   await notify({
     userId: user.id,
     type: "send",
@@ -561,6 +605,8 @@ export async function depositAction(
       },
     }),
   ]);
+
+  grantAchievement(user.id, "first_deposit").catch(() => {});
 
   await notify({
     userId: user.id,
@@ -649,6 +695,8 @@ export async function requestCardAction(
       monthlyLimit: 2000,
     },
   });
+
+  grantAchievement(user.id, "first_card").catch(() => {});
 
   revalidatePath("/dashboard/card");
   revalidatePath("/dashboard");
@@ -855,6 +903,8 @@ export async function buyTicketsAction(
     }),
   ]);
 
+  grantAchievement(user.id, "first_ticket").catch(() => {});
+
   revalidatePath("/dashboard/raffle");
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/history");
@@ -961,6 +1011,7 @@ export async function drawRaffleAction(
   await prisma.$transaction(writes);
 
   if (result.kind === "user") {
+    grantAchievement(result.userId, "raffle_winner").catch(() => {});
     await notify({
       userId: result.userId,
       type: "raffle_win",

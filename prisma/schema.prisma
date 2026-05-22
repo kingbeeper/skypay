@@ -30,6 +30,22 @@ model User {
   notifications Notification[]
   watchlist     Watchlist[]
   priceAlerts   PriceAlert[]
+  referralCode  String?       @unique
+  referredById  String?
+  referredBy    User?         @relation("ReferredBy", fields: [referredById], references: [id])
+  referred      User[]        @relation("ReferredBy")
+  achievements  Achievement[]
+}
+
+model Achievement {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  code      String
+  earnedAt  DateTime @default(now())
+
+  @@unique([userId, code])
+  @@index([userId])
 }
 
 model Watchlist {

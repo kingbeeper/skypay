@@ -7,10 +7,16 @@ import { DeleteAccount } from "./DeleteAccount";
 import { TwoFactor } from "./TwoFactor";
 import { ReplayTourButton } from "./ReplayTourButton";
 import { RecoveryCodes } from "./RecoveryCodes";
+import { prisma } from "@/lib/db";
+import { ACHIEVEMENTS } from "@/lib/achievements";
 
 export default async function SettingsPage() {
   const user = await requireUser();
   const theme = await getTheme();
+  const earned = await prisma.achievement.findMany({
+    where: { userId: user.id },
+  });
+  const earnedCodes = new Set(earned.map((e) => e.code));
 
   return (
     <div className="max-w-2xl mx-auto space-y-12">
@@ -98,6 +104,41 @@ export default async function SettingsPage() {
                 : "—"}
             </div>
           </div>
+        </div>
+      </Section>
+
+      <Section
+        title={`Logros · ${earnedCodes.size} / ${ACHIEVEMENTS.length}`}
+        subtitle="Insignias que ganas usando la app. Se desbloquean automáticamente."
+      >
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {ACHIEVEMENTS.map((a) => {
+            const earned = earnedCodes.has(a.code);
+            return (
+              <div
+                key={a.code}
+                className={`rounded-2xl border p-4 text-center transition-opacity ${
+                  earned
+                    ? "border-white/[0.08] bg-white/[0.02]"
+                    : "border-white/[0.04] bg-white/[0.01] opacity-40"
+                }`}
+              >
+                <div
+                  className="mx-auto h-10 w-10 rounded-full inline-flex items-center justify-center text-base font-mono font-bold"
+                  style={{
+                    backgroundColor: a.color + (earned ? "22" : "0a"),
+                    color: a.color,
+                  }}
+                >
+                  {a.icon}
+                </div>
+                <div className="mt-2 text-xs font-medium">{a.title}</div>
+                <div className="text-[10px] text-zinc-500 mt-1 leading-tight">
+                  {a.description}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </Section>
 
