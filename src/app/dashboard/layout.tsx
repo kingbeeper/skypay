@@ -11,9 +11,10 @@ import { NavDropdown } from "./NavDropdown";
 import { AccountMenu } from "./AccountMenu";
 import { getTheme } from "@/lib/theme";
 import { isGroup, type NavEntry, type NavItem } from "./nav";
+import { Logomark } from "@/components/Logomark";
 
 const baseNavEntries: NavEntry[] = [
-  { href: "/dashboard", label: "Resumen" },
+  { href: "/dashboard", label: "Dashboard" },
   { href: "/dashboard/markets", label: "Mercados" },
   {
     label: "Operaciones",
@@ -66,7 +67,7 @@ export default async function DashboardLayout({
               href="/"
               className="flex items-center gap-2 font-mono font-semibold uppercase tracking-[0.2em] text-sm sm:text-base"
             >
-              <span className="inline-block h-7 w-7 rounded-md bg-gradient-to-br from-cyan-400 to-indigo-500" />
+              <Logomark size={28} />
               SKYPAY
             </Link>
             <nav className="hidden md:flex items-center gap-1 text-sm">
@@ -128,9 +129,6 @@ function DesktopLink({ item }: { item: NavItem }) {
       {item.label}
       {item.soon && (
         <span className="ml-1.5 text-[10px] font-mono text-zinc-600">soon</span>
-      )}
-      {item.highlight && (
-        <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-amber-400 align-middle" />
       )}
       {item.admin && (
         <span className="ml-1.5 text-[10px] font-mono uppercase tracking-wider text-rose-400/70">

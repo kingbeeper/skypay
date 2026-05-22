@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireGuest } from "@/lib/auth";
+import { Logomark } from "@/components/Logomark";
 
 export default async function AuthLayout({
   children,
@@ -14,7 +15,7 @@ export default async function AuthLayout({
       <header className="relative z-10 border-b border-white/[0.06]">
         <div className="mx-auto max-w-6xl px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 font-mono font-semibold uppercase tracking-[0.2em]">
-            <span className="inline-block h-7 w-7 rounded-md bg-gradient-to-br from-cyan-400 to-indigo-500" />
+            <Logomark size={28} />
             SKYPAY
           </Link>
         </div>

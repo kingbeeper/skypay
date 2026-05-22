@@ -6,7 +6,7 @@ export default function LoginPage() {
     <div className="w-full max-w-sm">
       <h1 className="text-3xl font-semibold tracking-tight mb-2">Bienvenido</h1>
       <p className="text-zinc-400 mb-8 text-sm">
-        Entra con tu cuenta o usa el acceso demo para inversores.
+        Entra a tu cuenta para acceder a Skypay.
       </p>
 
       <LoginForm />

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logoutAction } from "@/app/actions";
 import { isGroup, type NavEntry, type NavItem } from "./nav";
+import { Logomark } from "@/components/Logomark";
 
 export type { NavItem } from "./nav";
 
@@ -68,7 +69,7 @@ export function MobileNav({
       >
         <div className="flex items-center justify-between px-6 h-16 border-b border-white/[0.06] shrink-0">
           <span className="font-mono font-semibold uppercase tracking-[0.2em] text-sm flex items-center gap-2">
-            <span className="inline-block h-6 w-6 rounded-md bg-gradient-to-br from-cyan-400 to-indigo-500" />
+            <Logomark size={24} />
             SKYPAY
           </span>
           <button
@@ -239,9 +240,6 @@ function NavLink({
       <span className="flex items-center gap-1.5">
         {item.soon && (
           <span className="text-[10px] font-mono text-zinc-600">soon</span>
-        )}
-        {item.highlight && (
-          <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
         )}
         {item.admin && (
           <span className="text-[10px] font-mono uppercase tracking-wider text-rose-400/80">

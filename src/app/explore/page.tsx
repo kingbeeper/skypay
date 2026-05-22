@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { getOrCreateCurrentRound } from "@/lib/raffle";
 import { Countdown } from "@/app/dashboard/raffle/Countdown";
+import { Logomark } from "@/components/Logomark";
 
 export default async function ExplorePage() {
   const user = await getCurrentUser();
@@ -14,7 +15,7 @@ export default async function ExplorePage() {
       <header className="sticky top-0 z-30 backdrop-blur-md bg-[color:var(--background)]/85 border-b border-white/[0.08]">
         <div className="mx-auto max-w-6xl px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 font-mono font-semibold uppercase tracking-[0.2em]">
-            <span className="inline-block h-7 w-7 rounded-md bg-gradient-to-br from-cyan-400 to-indigo-500" />
+            <Logomark size={28} />
             SKYPAY
           </Link>
           <nav className="flex items-center gap-3 text-sm">

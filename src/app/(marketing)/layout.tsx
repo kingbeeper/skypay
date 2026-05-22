@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
+import { Logomark } from "@/components/Logomark";
 
 export default async function MarketingLayout({
   children,
@@ -19,7 +20,7 @@ export default async function MarketingLayout({
             href="/"
             className="flex items-center gap-2 font-mono font-semibold uppercase tracking-[0.2em]"
           >
-            <span className="inline-block h-7 w-7 rounded-md bg-gradient-to-br from-cyan-400 to-indigo-500" />
+            <Logomark size={28} />
             SKYPAY
           </Link>
           <nav className="flex items-center gap-4 text-sm">

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
+import { Logomark } from "@/components/Logomark";
 
 export default async function Home() {
   const user = await getCurrentUser();
@@ -23,7 +24,9 @@ export default async function Home() {
         <div className="w-full max-w-sm flex flex-col items-center text-center">
           {/* Brand */}
           <div className="flex flex-col items-center gap-4">
-            <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-cyan-400 to-indigo-500 shadow-2xl shadow-cyan-500/20" />
+            <div className="shadow-2xl shadow-cyan-500/20 rounded-2xl">
+              <Logomark size={64} />
+            </div>
             <div className="font-mono font-semibold uppercase tracking-[0.3em] text-2xl">
               SKYPAY
             </div>

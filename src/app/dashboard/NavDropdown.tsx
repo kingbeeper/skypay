@@ -99,9 +99,6 @@ export function NavDropdown({ label, items }: Props) {
                     soon
                   </span>
                 )}
-                {item.highlight && (
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                )}
               </Link>
             );
           })}

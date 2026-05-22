@@ -34,8 +34,6 @@ export type SwapResult =
   | { ok: false; error: string }
   | undefined;
 
-const DEMO_EMAIL = "demo@skypay.app";
-
 function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
@@ -259,21 +257,6 @@ export async function loginAction(
   session.isDemo = user.isDemo;
   await session.save();
 
-  redirect("/dashboard");
-}
-
-export async function demoLoginAction() {
-  const user = await prisma.user.findUnique({ where: { email: DEMO_EMAIL } });
-  if (!user) {
-    throw new Error(
-      "Demo user not seeded — run `npm run db:seed`"
-    );
-  }
-  const session = await getSession();
-  session.userId = user.id;
-  session.email = user.email;
-  session.isDemo = true;
-  await session.save();
   redirect("/dashboard");
 }
 
