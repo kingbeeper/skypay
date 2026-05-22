@@ -1,13 +1,15 @@
+import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { fetchPrices } from "@/lib/prices";
-import { formatUsd } from "@/lib/assets";
+import { formatUsd, formatAmount, type AssetSymbol } from "@/lib/assets";
+import { adminForceDrawAction } from "@/app/actions";
 import { AdminToggleButton } from "./AdminToggleButton";
 
 export default async function AdminPage() {
   const me = await requireAdmin();
 
-  const [users, currentRound, pastRounds, raffleTotals, raffleEntriesTotal] =
+  const [users, currentRound, pastRounds, raffleTotals, raffleEntriesTotal, recentTransactions, recentCardTxs] =
     await Promise.all([
       prisma.user.findMany({
         include: {
@@ -49,7 +51,27 @@ export default async function AdminPage() {
         _count: { userId: true },
       }),
       prisma.raffleEntry.count(),
+      prisma.transaction.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        include: { user: { select: { id: true, email: true, name: true } } },
+      }),
+      prisma.cardTransaction.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        include: { card: { select: { userId: true, last4: true } } },
+      }),
     ]);
+
+  // Need user emails for card transactions — separate fetch (small list)
+  const cardUserIds = Array.from(new Set(recentCardTxs.map((c) => c.card.userId)));
+  const cardUsers = cardUserIds.length
+    ? await prisma.user.findMany({
+        where: { id: { in: cardUserIds } },
+        select: { id: true, email: true, name: true },
+      })
+    : [];
+  const cardUserMap = new Map(cardUsers.map((u) => [u.id, u]));
 
   const prices = await fetchPrices();
   const btcPrice = prices.BTC?.usd ?? 0;
@@ -83,6 +105,47 @@ export default async function AdminPage() {
           Acceso restringido. Logged in as{" "}
           <span className="font-mono text-zinc-300">{me.email}</span>.
         </p>
+
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Link
+            href="/dashboard/admin/users/new"
+            className="inline-flex h-10 items-center gap-2 rounded-full bg-white text-black px-5 text-sm font-medium hover:bg-zinc-200 transition-colors"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Crear usuario
+          </Link>
+          {currentRound &&
+            // eslint-disable-next-line react-hooks/purity -- server component renders per request; Date.now is the intended time source
+            (currentRound.drawsAt.getTime() > Date.now() ? (
+              <form action={adminForceDrawAction}>
+                <button
+                  type="submit"
+                  className="inline-flex h-10 items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/[0.08] px-5 text-sm font-medium text-amber-200 hover:bg-amber-500/[0.16] transition-colors"
+                >
+                  Forzar fin de ronda
+                </button>
+              </form>
+            ) : (
+              <Link
+                href="/dashboard/raffle"
+                className="inline-flex h-10 items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/[0.08] px-5 text-sm font-medium text-amber-200 hover:bg-amber-500/[0.16] transition-colors"
+              >
+                Realizar sorteo ahora →
+              </Link>
+            ))}
+        </div>
       </div>
 
       {/* High-level KPIs */}
@@ -183,12 +246,17 @@ export default async function AdminPage() {
                       className="border-t border-white/[0.04] hover:bg-white/[0.02] transition-colors"
                     >
                       <td className="px-5 py-3.5">
-                        <div className="font-medium truncate">
-                          {e.user.name ?? e.user.email.split("@")[0]}
-                        </div>
-                        <div className="text-xs text-zinc-500 font-mono truncate">
-                          {e.user.email}
-                        </div>
+                        <Link
+                          href={`/dashboard/admin/users/${e.user.id}`}
+                          className="block hover:text-cyan-200 transition-colors"
+                        >
+                          <div className="font-medium truncate">
+                            {e.user.name ?? e.user.email.split("@")[0]}
+                          </div>
+                          <div className="text-xs text-zinc-500 font-mono truncate">
+                            {e.user.email}
+                          </div>
+                        </Link>
                       </td>
                       <td className="text-right px-5 py-3.5 font-mono tabular-nums">
                         {e.tickets.toLocaleString("es-ES")}
@@ -348,17 +416,22 @@ export default async function AdminPage() {
                     }`}
                   >
                     <td className="px-5 py-3.5">
-                      <div className="font-medium truncate">
-                        {u.name ?? u.email.split("@")[0]}
-                        {isMe && (
-                          <span className="ml-2 text-[10px] font-mono uppercase tracking-wider text-rose-300">
-                            tú
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-zinc-500 font-mono truncate">
-                        {u.email}
-                      </div>
+                      <Link
+                        href={`/dashboard/admin/users/${u.id}`}
+                        className="block hover:text-cyan-200 transition-colors"
+                      >
+                        <div className="font-medium truncate">
+                          {u.name ?? u.email.split("@")[0]}
+                          {isMe && (
+                            <span className="ml-2 text-[10px] font-mono uppercase tracking-wider text-rose-300">
+                              tú
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-zinc-500 font-mono truncate">
+                          {u.email}
+                        </div>
+                      </Link>
                     </td>
                     <td className="px-5 py-3.5">
                       <div className="flex flex-wrap gap-1">
@@ -412,10 +485,157 @@ export default async function AdminPage() {
           </table>
         </div>
         <p className="mt-4 text-xs text-zinc-500">
-          No puedes cambiar tu propio rol admin (para evitar bloqueos). Si
-          necesitas hacerlo, usa Prisma Studio:{" "}
-          <code className="font-mono text-zinc-400">npm run db:studio</code>.
+          Click en el nombre/email de un usuario para abrir su perfil completo
+          con balances, transacciones y acciones de admin (ajustar saldo,
+          eliminar). No puedes cambiar tu propio rol admin desde aquí.
         </p>
+      </section>
+
+      {/* Global recent transactions feed */}
+      <section>
+        <div className="flex items-end justify-between mb-5">
+          <h2 className="text-xl font-semibold tracking-tight">
+            Actividad reciente (global)
+          </h2>
+          <span className="text-xs font-mono text-zinc-500">
+            últimas {recentTransactions.length + recentCardTxs.length} ·
+            todos los usuarios
+          </span>
+        </div>
+        <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] overflow-hidden divide-y divide-white/[0.04]">
+          {[
+            ...recentTransactions.map((t) => ({
+              key: `tx-${t.id}`,
+              at: t.createdAt,
+              userId: t.user.id,
+              userLabel: t.user.name ?? t.user.email.split("@")[0],
+              userEmail: t.user.email,
+              kind: "tx" as const,
+              type: t.type,
+              fromAsset: t.fromAsset,
+              toAsset: t.toAsset,
+              fromAmount: t.fromAmount,
+              toAmount: t.toAmount,
+              description: t.description,
+            })),
+            ...recentCardTxs.map((c) => {
+              const u = cardUserMap.get(c.card.userId);
+              return {
+                key: `card-${c.id}`,
+                at: c.createdAt,
+                userId: c.card.userId,
+                userLabel: u?.name ?? u?.email?.split("@")[0] ?? "Usuario",
+                userEmail: u?.email ?? "",
+                kind: "card" as const,
+                type: "card_purchase",
+                merchant: c.merchant,
+                amountUsd: c.amountUsd,
+                status: c.status,
+                last4: c.card.last4,
+                sourceAsset: c.sourceAsset,
+              };
+            }),
+          ]
+            .sort((a, b) => b.at.getTime() - a.at.getTime())
+            .slice(0, 20)
+            .map((row) => {
+              let title = row.type;
+              let amount = "—";
+              let tone: "in" | "out" | "neutral" = "neutral";
+              if (row.kind === "card") {
+                title = `${row.merchant} · ••••${row.last4}`;
+                amount = `−${formatUsd(row.amountUsd)}`;
+                tone = row.status === "approved" ? "out" : "neutral";
+              } else if (row.type === "swap" && row.fromAsset && row.toAsset) {
+                title = `Swap ${row.fromAsset} → ${row.toAsset}`;
+                if (row.toAmount) {
+                  amount = `${formatAmount(row.toAmount, row.toAsset as AssetSymbol)} ${row.toAsset}`;
+                }
+              } else if (row.type === "deposit" && row.toAsset && row.toAmount) {
+                title = `Depósito ${row.toAsset}`;
+                amount = `+${formatAmount(row.toAmount, row.toAsset as AssetSymbol)} ${row.toAsset}`;
+                tone = "in";
+              } else if (row.type === "send" && row.fromAsset && row.fromAmount) {
+                title = `Envío ${row.fromAsset}`;
+                amount = `−${formatAmount(row.fromAmount, row.fromAsset as AssetSymbol)} ${row.fromAsset}`;
+                tone = "out";
+              } else if (row.type === "raffle_buy" && row.fromAmount) {
+                title = "Compra tickets rifa";
+                amount = `−${formatUsd(row.fromAmount)}`;
+                tone = "out";
+              } else if (row.type === "raffle_win" && row.toAmount) {
+                title = "Premio rifa";
+                amount = `+${row.toAmount} BTC`;
+                tone = "in";
+              } else if (row.type === "admin_adjust") {
+                if (row.toAmount && row.toAsset) {
+                  title = `Admin crédito ${row.toAsset}`;
+                  amount = `+${formatAmount(row.toAmount, row.toAsset as AssetSymbol)}`;
+                  tone = "in";
+                } else if (row.fromAmount && row.fromAsset) {
+                  title = `Admin débito ${row.fromAsset}`;
+                  amount = `−${formatAmount(row.fromAmount, row.fromAsset as AssetSymbol)}`;
+                  tone = "out";
+                }
+              }
+              return (
+                <Link
+                  key={row.key}
+                  href={`/dashboard/admin/users/${row.userId}`}
+                  className="flex items-start gap-4 px-5 py-3.5 hover:bg-white/[0.02] transition-colors"
+                >
+                  <span
+                    className={`inline-flex h-7 w-7 shrink-0 rounded-full items-center justify-center font-mono text-[10px] font-semibold ${
+                      row.kind === "card"
+                        ? "bg-indigo-400/[0.15] text-indigo-300"
+                        : tone === "in"
+                          ? "bg-emerald-400/[0.15] text-emerald-300"
+                          : tone === "out"
+                            ? "bg-pink-400/[0.15] text-pink-300"
+                            : "bg-cyan-400/[0.15] text-cyan-300"
+                    }`}
+                  >
+                    {row.kind === "card" ? "$" : tone === "in" ? "↓" : tone === "out" ? "↑" : "·"}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">{title}</div>
+                    <div className="text-xs text-zinc-500 truncate">
+                      <span className="text-zinc-400">{row.userLabel}</span>
+                      <span className="text-zinc-600 ml-2 font-mono">
+                        {row.userEmail}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div
+                      className={`text-sm font-mono tabular-nums ${
+                        tone === "in"
+                          ? "text-emerald-300"
+                          : tone === "out"
+                            ? "text-pink-300"
+                            : "text-zinc-300"
+                      }`}
+                    >
+                      {amount}
+                    </div>
+                    <div className="text-[10px] font-mono text-zinc-600">
+                      {new Date(row.at).toLocaleDateString("es-ES", {
+                        day: "2-digit",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          {recentTransactions.length + recentCardTxs.length === 0 && (
+            <div className="px-5 py-10 text-center text-sm text-zinc-500">
+              Sin actividad reciente.
+            </div>
+          )}
+        </div>
       </section>
     </div>
   );

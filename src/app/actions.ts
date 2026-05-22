@@ -749,6 +749,216 @@ export async function fastForwardRaffleAction() {
   revalidatePath("/");
 }
 
+export type CreateUserResult =
+  | { ok: true; userId: string; email: string; generatedPassword?: string }
+  | { ok: false; error: string }
+  | undefined;
+
+export async function createUserAction(
+  _prev: CreateUserResult,
+  formData: FormData
+): Promise<CreateUserResult> {
+  const me = await getCurrentUser();
+  if (!me) return { ok: false, error: "No autenticado" };
+  if (!me.isAdmin) return { ok: false, error: "Sin permisos" };
+
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const name = String(formData.get("name") ?? "").trim() || null;
+  const password = String(formData.get("password") ?? "");
+  const isDemo = String(formData.get("isDemo") ?? "") === "on";
+  const isAdmin = String(formData.get("isAdmin") ?? "") === "on";
+  const initialUsdRaw = String(formData.get("initialUsd") ?? "0");
+  const initialUsd = Number(initialUsdRaw) || 0;
+
+  if (!isValidEmail(email)) return { ok: false, error: "Correo no válido" };
+  if (password && password.length < 8) {
+    return { ok: false, error: "La contraseña debe tener al menos 8 caracteres" };
+  }
+  if (initialUsd < 0) {
+    return { ok: false, error: "El balance inicial no puede ser negativo" };
+  }
+
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) return { ok: false, error: "Ya existe una cuenta con ese correo" };
+
+  // Generate a readable password if admin didn't supply one
+  let actualPassword = password;
+  let generatedPassword: string | undefined;
+  if (!actualPassword) {
+    const alphabet =
+      "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+    actualPassword = Array.from(
+      { length: 12 },
+      () => alphabet[Math.floor(Math.random() * alphabet.length)]
+    ).join("");
+    generatedPassword = actualPassword;
+  }
+
+  const passwordHash = await bcrypt.hash(actualPassword, 10);
+  const user = await prisma.user.create({
+    data: {
+      email,
+      passwordHash,
+      name,
+      isDemo,
+      isAdmin,
+      kycStatus: "approved",
+      balances: {
+        create: [{ asset: "USD", amount: initialUsd }],
+      },
+    },
+  });
+
+  revalidatePath("/dashboard/admin");
+
+  return {
+    ok: true,
+    userId: user.id,
+    email: user.email,
+    generatedPassword,
+  };
+}
+
+export type AdjustBalanceResult =
+  | { ok: true; message: string; asset: string; newAmount: number }
+  | { ok: false; error: string }
+  | undefined;
+
+export async function adjustBalanceAction(
+  _prev: AdjustBalanceResult,
+  formData: FormData
+): Promise<AdjustBalanceResult> {
+  const me = await getCurrentUser();
+  if (!me) return { ok: false, error: "No autenticado" };
+  if (!me.isAdmin) return { ok: false, error: "Sin permisos" };
+
+  const userId = String(formData.get("userId") ?? "");
+  const asset = String(formData.get("asset") ?? "");
+  const deltaRaw = String(formData.get("delta") ?? "");
+  const reason = String(formData.get("reason") ?? "").trim();
+  const delta = Number(deltaRaw);
+
+  if (!userId) return { ok: false, error: "userId requerido" };
+  if (!isAssetSymbol(asset)) return { ok: false, error: "Activo inválido" };
+  if (!Number.isFinite(delta) || delta === 0) {
+    return { ok: false, error: "Cantidad inválida (use signo + o -)" };
+  }
+
+  const target = await prisma.user.findUnique({
+    where: { id: userId },
+    include: { balances: { where: { asset } } },
+  });
+  if (!target) return { ok: false, error: "Usuario no encontrado" };
+
+  const current = target.balances[0]?.amount ?? 0;
+  const next = current + delta;
+  if (next < 0) {
+    return {
+      ok: false,
+      error: `El balance quedaría negativo (actual ${current.toFixed(4)} ${asset})`,
+    };
+  }
+
+  await prisma.$transaction([
+    prisma.balance.upsert({
+      where: { userId_asset: { userId, asset } },
+      update: { amount: next },
+      create: { userId, asset, amount: next },
+    }),
+    prisma.transaction.create({
+      data: {
+        userId,
+        type: "admin_adjust",
+        ...(delta >= 0
+          ? { toAsset: asset, toAmount: delta }
+          : { fromAsset: asset, fromAmount: Math.abs(delta) }),
+        status: "completed",
+        description: `Admin ajuste · ${me.email}${reason ? ` · ${reason}` : ""}`,
+      },
+    }),
+  ]);
+
+  revalidatePath(`/dashboard/admin/users/${userId}`);
+  revalidatePath("/dashboard/admin");
+
+  return {
+    ok: true,
+    message: `${delta >= 0 ? "Acreditado" : "Debitado"} ${Math.abs(delta)} ${asset}`,
+    asset,
+    newAmount: next,
+  };
+}
+
+export type DeleteUserResult =
+  | { ok: true; email: string }
+  | { ok: false; error: string }
+  | undefined;
+
+export async function deleteUserAction(
+  _prev: DeleteUserResult,
+  formData: FormData
+): Promise<DeleteUserResult> {
+  const me = await getCurrentUser();
+  if (!me) return { ok: false, error: "No autenticado" };
+  if (!me.isAdmin) return { ok: false, error: "Sin permisos" };
+
+  const userId = String(formData.get("userId") ?? "");
+  const confirmEmail = String(formData.get("confirmEmail") ?? "").trim().toLowerCase();
+
+  if (!userId) return { ok: false, error: "userId requerido" };
+  if (userId === me.id) {
+    return { ok: false, error: "No puedes eliminar tu propia cuenta" };
+  }
+
+  const target = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true },
+  });
+  if (!target) return { ok: false, error: "Usuario no encontrado" };
+  if (confirmEmail !== target.email) {
+    return {
+      ok: false,
+      error: "El correo de confirmación no coincide",
+    };
+  }
+
+  // Past raffle rounds reference winner via Restrict (default). Null out
+  // the FK before deleting the user so the rounds survive.
+  await prisma.$transaction([
+    prisma.raffleRound.updateMany({
+      where: { winnerUserId: userId },
+      data: { winnerUserId: null },
+    }),
+    prisma.user.delete({ where: { id: userId } }),
+  ]);
+
+  revalidatePath("/dashboard/admin");
+
+  return { ok: true, email: target.email };
+}
+
+export async function adminForceDrawAction() {
+  const me = await getCurrentUser();
+  if (!me || !me.isAdmin) return;
+
+  const open = await prisma.raffleRound.findFirst({
+    where: { status: "open" },
+    orderBy: { drawsAt: "asc" },
+  });
+  if (!open) return;
+
+  // Force deadline to past so the draw can run
+  if (open.drawsAt.getTime() > Date.now()) {
+    await prisma.raffleRound.update({
+      where: { id: open.id },
+      data: { drawsAt: new Date(Date.now() - 1000) },
+    });
+  }
+
+  revalidatePath("/dashboard/admin");
+  revalidatePath("/dashboard/raffle");
+}
+
 export type AdminToggleResult =
   | { ok: true; userId: string; isAdmin: boolean }
   | { ok: false; error: string }
