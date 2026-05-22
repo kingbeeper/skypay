@@ -338,6 +338,100 @@ export async function swapAction(
   };
 }
 
+export type P2PSendResult =
+  | { ok: true; message: string; recipientLabel: string; asset: string; amount: number }
+  | { ok: false; error: string }
+  | undefined;
+
+export async function sendP2PAction(
+  _prev: P2PSendResult,
+  formData: FormData
+): Promise<P2PSendResult> {
+  const sender = await getCurrentUser();
+  if (!sender) return { ok: false, error: "No autenticado" };
+
+  const recipientEmail = String(formData.get("recipientEmail") ?? "")
+    .trim()
+    .toLowerCase();
+  const asset = String(formData.get("asset") ?? "");
+  const amountRaw = String(formData.get("amount") ?? "");
+  const note = String(formData.get("note") ?? "").trim();
+  const amount = Number(amountRaw);
+
+  if (!isAssetSymbol(asset)) return { ok: false, error: "Activo inválido" };
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { ok: false, error: "Monto inválido" };
+  }
+  if (recipientEmail === sender.email) {
+    return { ok: false, error: "No puedes enviarte a ti mismo" };
+  }
+
+  const recipient = await prisma.user.findUnique({
+    where: { email: recipientEmail },
+  });
+  if (!recipient) {
+    return { ok: false, error: "No encontramos a ningún usuario con ese email" };
+  }
+
+  const senderBalance = sender.balances.find((b) => b.asset === asset);
+  if (!senderBalance || senderBalance.amount < amount) {
+    return { ok: false, error: `Saldo ${asset} insuficiente` };
+  }
+
+  const recipientLabel = recipient.name ?? recipient.email.split("@")[0];
+
+  await prisma.$transaction([
+    prisma.balance.update({
+      where: { userId_asset: { userId: sender.id, asset } },
+      data: { amount: { decrement: amount } },
+    }),
+    prisma.balance.upsert({
+      where: { userId_asset: { userId: recipient.id, asset } },
+      update: { amount: { increment: amount } },
+      create: { userId: recipient.id, asset, amount },
+    }),
+    prisma.transaction.create({
+      data: {
+        userId: sender.id,
+        type: "p2p_send",
+        fromAsset: asset,
+        fromAmount: amount,
+        status: "completed",
+        description: `P2P a ${recipientLabel}${note ? ` · ${note}` : ""}`,
+      },
+    }),
+    prisma.transaction.create({
+      data: {
+        userId: recipient.id,
+        type: "p2p_receive",
+        toAsset: asset,
+        toAmount: amount,
+        status: "completed",
+        description: `P2P de ${sender.name ?? sender.email.split("@")[0]}${note ? ` · ${note}` : ""}`,
+      },
+    }),
+  ]);
+
+  await notify({
+    userId: recipient.id,
+    type: "p2p_receive",
+    title: `Recibiste ${amount} ${asset}`,
+    body: `De ${sender.name ?? sender.email}${note ? ` · ${note}` : ""}`,
+    link: "/dashboard/history",
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/history");
+
+  return {
+    ok: true,
+    message: `Enviado ${amount} ${asset} a ${recipientLabel}`,
+    recipientLabel,
+    asset,
+    amount,
+  };
+}
+
 export type SendResult =
   | { ok: true; message: string; txHash: string; asset: string; amount: number; address: string }
   | { ok: false; error: string }

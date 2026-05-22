@@ -8,13 +8,14 @@ import {
   type AssetSymbol,
 } from "@/lib/assets";
 
-type Filter = "all" | "swap" | "deposito" | "envio" | "tarjeta";
+type Filter = "all" | "swap" | "deposito" | "envio" | "p2p" | "tarjeta";
 
 const FILTERS: { key: Filter; label: string }[] = [
   { key: "all", label: "Todo" },
   { key: "swap", label: "Swaps" },
   { key: "deposito", label: "Depósitos" },
   { key: "envio", label: "Envíos" },
+  { key: "p2p", label: "P2P" },
   { key: "tarjeta", label: "Tarjeta" },
 ];
 
@@ -78,11 +79,14 @@ export default async function HistoryPage({
             ...(filter === "swap" && { type: "swap" }),
             ...(filter === "deposito" && { type: "deposit" }),
             ...(filter === "envio" && { type: "send" }),
+            ...(filter === "p2p" && {
+              type: { in: ["p2p_send", "p2p_receive"] },
+            }),
           },
           orderBy: { createdAt: "desc" },
           take: 200,
         }),
-    filter === "swap" || filter === "deposito" || filter === "envio"
+    filter === "swap" || filter === "deposito" || filter === "envio" || filter === "p2p"
       ? Promise.resolve([])
       : prisma.cardTransaction.findMany({
           where: { card: { userId: user.id } },
@@ -126,6 +130,26 @@ export default async function HistoryPage({
         fromAmount: t.fromAmount,
         description: t.description,
       });
+    } else if (t.type === "p2p_send" && t.fromAsset && t.fromAmount) {
+      entries.push({
+        kind: "send",
+        id: t.id,
+        at: t.createdAt,
+        status: t.status,
+        fromAsset: t.fromAsset as AssetSymbol,
+        fromAmount: t.fromAmount,
+        description: t.description,
+      });
+    } else if (t.type === "p2p_receive" && t.toAsset && t.toAmount) {
+      entries.push({
+        kind: "deposit",
+        id: t.id,
+        at: t.createdAt,
+        status: t.status,
+        toAsset: t.toAsset as AssetSymbol,
+        toAmount: t.toAmount,
+        description: t.description,
+      });
     }
   }
   for (const c of cardTxs) {
@@ -150,17 +174,41 @@ export default async function HistoryPage({
     swap: entries.filter((e) => e.kind === "swap").length,
     deposito: entries.filter((e) => e.kind === "deposit").length,
     envio: entries.filter((e) => e.kind === "send").length,
+    p2p: 0, // p2p mezcla send+deposit semánticamente; el filtro lo maneja por query
     tarjeta: entries.filter((e) => e.kind === "card").length,
   };
 
   return (
     <div className="space-y-8">
-      <div>
-        <p className="text-sm font-mono text-cyan-400 mb-2">/ historial</p>
-        <h1 className="text-3xl font-semibold tracking-tight">Movimientos</h1>
-        <p className="mt-2 text-sm text-zinc-400">
-          Swaps, depósitos y pagos con tarjeta. Mostrando los últimos 200.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-mono text-cyan-400 mb-2">/ historial</p>
+          <h1 className="text-3xl font-semibold tracking-tight">Movimientos</h1>
+          <p className="mt-2 text-sm text-zinc-400">
+            Swaps, depósitos, envíos, P2P y pagos con tarjeta. Mostrando los
+            últimos 200.
+          </p>
+        </div>
+        <a
+          href="/api/export/transactions"
+          download
+          className="inline-flex items-center gap-2 h-10 rounded-full border border-white/15 bg-white/[0.02] px-4 text-xs font-mono text-zinc-300 hover:bg-white/[0.06] transition-colors shrink-0"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            className="h-3.5 w-3.5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Descargar CSV
+        </a>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -217,6 +265,7 @@ function isFilter(v: string | undefined): v is Filter {
     v === "swap" ||
     v === "deposito" ||
     v === "envio" ||
+    v === "p2p" ||
     v === "tarjeta" ||
     v === "all"
   );
@@ -438,6 +487,11 @@ function EmptyState({ filter }: { filter: Filter }) {
       title: "Sin envíos",
       sub: "Transfiere cripto a una wallet externa.",
       cta: { href: "/dashboard/send", label: "Enviar cripto" },
+    },
+    p2p: {
+      title: "Sin pagos P2P",
+      sub: "Envía a otro usuario Skypay por email — instantáneo y gratis.",
+      cta: { href: "/dashboard/send-user", label: "Enviar a usuario" },
     },
     tarjeta: {
       title: "Sin compras con tarjeta",

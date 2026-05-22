@@ -19,6 +19,7 @@ const COMMANDS: Command[] = [
   { id: "nav-markets", label: "Mercados", href: "/dashboard/markets", group: "Ir a", keywords: ["precios", "btc", "eth"] },
   { id: "nav-swap", label: "Swap", href: "/dashboard/swap", group: "Ir a", keywords: ["cambiar", "convertir", "intercambio"] },
   { id: "nav-send", label: "Enviar cripto", href: "/dashboard/send", group: "Ir a", keywords: ["transferir", "withdraw"] },
+  { id: "nav-p2p", label: "Pagar a otro usuario", href: "/dashboard/send-user", group: "Ir a", keywords: ["p2p", "venmo", "email"] },
   { id: "nav-receive", label: "Recibir", href: "/dashboard/receive", group: "Ir a", keywords: ["qr", "direccion", "deposito"] },
   { id: "nav-deposit", label: "Depositar", href: "/dashboard/deposit", group: "Ir a", keywords: ["añadir", "agregar fondos"] },
   { id: "nav-card", label: "Tarjeta", href: "/dashboard/card", group: "Ir a", keywords: ["visa", "pagar"] },
