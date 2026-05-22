@@ -163,6 +163,76 @@ export default async function RafflePage() {
         />
       </section>
 
+      <section className="grid md:grid-cols-5 gap-8">
+        <div className="md:col-span-3">
+          {drawIsOpen ? (
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold tracking-tight">
+                Esta ronda ya venció
+              </h2>
+              <p className="text-sm text-zinc-400">
+                Pulsa el botón para realizar el sorteo. La asignación es aleatoria
+                y ponderada por tickets — cuantos más compraste, mayor tu opción.
+              </p>
+              <DrawButton roundId={round.id} prizeBtc={round.prizeBtc} />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold tracking-tight">
+                Compra tickets
+              </h2>
+              <BuyTicketsForm
+                ticketPriceUsd={round.ticketPriceUsd}
+                usdBalance={usdBalance}
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="md:col-span-2 space-y-4">
+          <h2 className="text-xl font-semibold tracking-tight">Cómo funciona</h2>
+          <ol className="space-y-3 text-sm">
+            {[
+              {
+                n: "01",
+                title: "Compra tickets",
+                body: `Cada ticket cuesta ${formatUsd(round.ticketPriceUsd)}, se descuenta de tu saldo USDC.`,
+              },
+              {
+                n: "02",
+                title: "Espera al sorteo",
+                body: "Las rondas son mensuales. El plazo cierra el primer día del mes a las 00:00 UTC.",
+              },
+              {
+                n: "03",
+                title: "Se elige un ticket",
+                body: "Un índice aleatorio entre todos los tickets vendidos decide al ganador.",
+              },
+              {
+                n: "04",
+                title: "Cobro instantáneo",
+                body: `Si tu ticket sale, el ${round.prizeBtc} BTC aparece en tu balance al instante.`,
+              },
+            ].map((s) => (
+              <li
+                key={s.n}
+                className="flex gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3"
+              >
+                <span className="font-mono text-xs text-amber-400/80 shrink-0">
+                  {s.n}
+                </span>
+                <div>
+                  <div className="font-medium">{s.title}</div>
+                  <div className="text-xs text-zinc-500 mt-0.5 leading-relaxed">
+                    {s.body}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
       <section>
         <div className="flex items-end justify-between mb-5">
           <h2 className="text-xl font-semibold tracking-tight">
@@ -202,76 +272,6 @@ export default async function RafflePage() {
               Aún no hay tickets vendidos.
             </div>
           )}
-        </div>
-      </section>
-
-      <section className="grid md:grid-cols-5 gap-8">
-        <div className="md:col-span-3">
-          {drawIsOpen ? (
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold tracking-tight">
-                Esta ronda ya venció
-              </h2>
-              <p className="text-sm text-zinc-400">
-                Pulsa el botón para realizar el sorteo. La asignación es aleatoria
-                y ponderada por tickets — cuantos más compraste, mayor tu opción.
-              </p>
-              <DrawButton roundId={round.id} prizeBtc={round.prizeBtc} />
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold tracking-tight">
-                Compra tickets
-              </h2>
-              <BuyTicketsForm
-                ticketPriceUsd={round.ticketPriceUsd}
-                usdBalance={usdBalance}
-              />
-            </div>
-          )}
-        </div>
-
-        <div className="md:col-span-2 space-y-4">
-          <h2 className="text-xl font-semibold tracking-tight">Cómo funciona</h2>
-          <ol className="space-y-3 text-sm">
-            {[
-              {
-                n: "01",
-                title: "Compra tickets",
-                body: `Cada ticket cuesta ${formatUsd(round.ticketPriceUsd)}, se descuenta de tu saldo USD.`,
-              },
-              {
-                n: "02",
-                title: "Espera al sorteo",
-                body: "Las rondas son mensuales. El plazo cierra el primer día del mes a las 00:00 UTC.",
-              },
-              {
-                n: "03",
-                title: "Se elige un ticket",
-                body: "Un índice aleatorio entre todos los tickets vendidos decide al ganador.",
-              },
-              {
-                n: "04",
-                title: "Cobro instantáneo",
-                body: `Si tu ticket sale, el ${round.prizeBtc} BTC aparece en tu balance al instante.`,
-              },
-            ].map((s) => (
-              <li
-                key={s.n}
-                className="flex gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3"
-              >
-                <span className="font-mono text-xs text-amber-400/80 shrink-0">
-                  {s.n}
-                </span>
-                <div>
-                  <div className="font-medium">{s.title}</div>
-                  <div className="text-xs text-zinc-500 mt-0.5 leading-relaxed">
-                    {s.body}
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ol>
         </div>
       </section>
 
