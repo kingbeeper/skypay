@@ -7,6 +7,7 @@ import { DeleteAccount } from "./DeleteAccount";
 import { TwoFactor } from "./TwoFactor";
 import { ReplayTourButton } from "./ReplayTourButton";
 import { RecoveryCodes } from "./RecoveryCodes";
+import { KycVerification } from "./KycVerification";
 import { prisma } from "@/lib/db";
 import { ACHIEVEMENTS } from "@/lib/achievements";
 
@@ -29,6 +30,13 @@ export default async function SettingsPage() {
           Gestiona tu perfil, seguridad y preferencias de la app.
         </p>
       </div>
+
+      <Section
+        title="Verificación de identidad"
+        subtitle="KYC necesario para desbloquear todos los límites de operación."
+      >
+        <KycVerification status={user.kycStatus} />
+      </Section>
 
       <Section
         title="Apariencia"

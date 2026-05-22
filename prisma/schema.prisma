@@ -11,7 +11,7 @@ model User {
   email         String        @unique
   passwordHash  String
   name          String?
-  kycStatus     String        @default("approved")
+  kycStatus     String        @default("pending")
   isDemo        Boolean       @default(false)
   isAdmin       Boolean       @default(false)
   totpSecret    String?

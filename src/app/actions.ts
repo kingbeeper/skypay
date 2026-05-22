@@ -74,7 +74,7 @@ export async function signupAction(
       email,
       passwordHash,
       name,
-      kycStatus: "approved",
+      // kycStatus defaults to "pending" — user verifies from /dashboard/settings
       referredById,
       balances: {
         create: [{ asset: "USDC", amount: initialUsd }],
@@ -1563,6 +1563,34 @@ export async function checkPriceAlertsAction() {
       link: `/dashboard/markets/${t.asset}`,
     });
   }
+}
+
+// ----- KYC verification -----
+
+export async function submitKycAction(): Promise<{ ok: true } | { ok: false; error: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "No autenticado" };
+  if (user.kycStatus === "approved") {
+    return { ok: false, error: "Ya estás verificado" };
+  }
+
+  // Demo: aprobamos automáticamente. En producción esto pasaría por un
+  // proveedor de verificación (Onfido, Sumsub, Persona, etc.) y un revisor.
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { kycStatus: "approved" },
+  });
+
+  await notify({
+    userId: user.id,
+    type: "kyc",
+    title: "Verificación de identidad aprobada",
+    body: "Ya puedes operar con todos los límites desbloqueados.",
+    link: "/dashboard/settings",
+  });
+
+  revalidatePath("/dashboard/settings");
+  return { ok: true };
 }
 
 export type RecoveryCodesResult =
