@@ -10,7 +10,7 @@ type Props = {
 };
 
 export function SwapForm({ balances, prices }: Props) {
-  const [fromAsset, setFromAsset] = useState<AssetSymbol>("USD");
+  const [fromAsset, setFromAsset] = useState<AssetSymbol>("USDC");
   const [toAsset, setToAsset] = useState<AssetSymbol>("BTC");
   const [fromAmount, setFromAmount] = useState<string>("");
 
@@ -232,9 +232,7 @@ function AssetPanel({
       </div>
       <div className="mt-2 text-xs font-mono text-zinc-500">
         ≈ {formatUsd(usdValue)}{" "}
-        <span className="ml-2 text-zinc-600">
-          {info.kind === "fiat" ? "fiat" : info.name}
-        </span>
+        <span className="ml-2 text-zinc-600">{info.name}</span>
       </div>
     </div>
   );

@@ -73,7 +73,7 @@ export default async function AssetDetailPage({
   const symbol = symbolParam.toUpperCase() as AssetSymbol;
 
   const info = ASSETS[symbol];
-  if (!info || info.kind === "fiat") notFound();
+  if (!info) notFound();
 
   const [prices, watchlistRow, alerts] = await Promise.all([
     fetchPrices(),

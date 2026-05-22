@@ -21,7 +21,6 @@ export async function fetchPrices(
   const url = `${COINGECKO_BASE}?ids=${ids}&vs_currencies=usd&include_24hr_change=true`;
 
   const prices: PriceMap = {
-    USD: { usd: 1, change24h: 0 },
     BTC: { usd: 0, change24h: 0 },
     ETH: { usd: 0, change24h: 0 },
     USDC: { usd: 1, change24h: 0 },

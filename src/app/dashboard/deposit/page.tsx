@@ -11,7 +11,6 @@ export default async function DepositPage() {
   const prices = await fetchPrices();
 
   const balances: Record<AssetSymbol, number> = {
-    USD: 0,
     BTC: 0,
     ETH: 0,
     USDC: 0,
@@ -22,7 +21,6 @@ export default async function DepositPage() {
   }
 
   const priceSnapshot: Record<AssetSymbol, number> = {
-    USD: prices.USD.usd,
     BTC: prices.BTC.usd,
     ETH: prices.ETH.usd,
     USDC: prices.USDC.usd,
@@ -36,7 +34,7 @@ export default async function DepositPage() {
           href="/dashboard"
           className="text-xs font-mono text-zinc-500 hover:text-zinc-300 transition-colors mb-3 inline-block"
         >
-          ← Resumen
+          ← Dashboard
         </Link>
         <p className="text-sm font-mono text-cyan-400 mb-2">/ depositar</p>
         <h1 className="text-3xl font-semibold tracking-tight">Añadir fondos</h1>

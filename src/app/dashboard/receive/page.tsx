@@ -161,9 +161,7 @@ export default async function ReceivePage({
 }
 
 function AssetPicker() {
-  const cryptoAssets = ASSET_LIST.filter(
-    (a) => a.symbol !== "USD"
-  ) as (typeof ASSET_LIST)[number][];
+  const cryptoAssets = ASSET_LIST as (typeof ASSET_LIST)[number][];
 
   return (
     <div className="max-w-xl mx-auto space-y-8">

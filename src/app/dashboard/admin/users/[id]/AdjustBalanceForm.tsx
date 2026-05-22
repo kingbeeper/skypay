@@ -8,7 +8,7 @@ import {
 import { ASSET_LIST, type AssetSymbol } from "@/lib/assets";
 
 export function AdjustBalanceForm({ userId }: { userId: string }) {
-  const [asset, setAsset] = useState<AssetSymbol>("USD");
+  const [asset, setAsset] = useState<AssetSymbol>("USDC");
   const [delta, setDelta] = useState("");
   const [reason, setReason] = useState("");
   const [state, formAction, pending] = useActionState<

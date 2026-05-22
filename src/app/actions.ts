@@ -77,7 +77,7 @@ export async function signupAction(
       kycStatus: "approved",
       referredById,
       balances: {
-        create: [{ asset: "USD", amount: initialUsd }],
+        create: [{ asset: "USDC", amount: initialUsd }],
       },
     },
   });
@@ -85,9 +85,9 @@ export async function signupAction(
   // Reward the referrer too
   if (referredById) {
     await prisma.balance.upsert({
-      where: { userId_asset: { userId: referredById, asset: "USD" } },
+      where: { userId_asset: { userId: referredById, asset: "USDC" } },
       update: { amount: { increment: 10 } },
-      create: { userId: referredById, asset: "USD", amount: 10 },
+      create: { userId: referredById, asset: "USDC", amount: 10 },
     });
     await notify({
       userId: referredById,
@@ -649,12 +649,12 @@ export async function requestCardAction(
     return { ok: false, error: "Ya tienes una tarjeta emitida" };
   }
 
-  const usdBalance =
-    user.balances.find((b) => b.asset === "USD")?.amount ?? 0;
-  if (usdBalance < MIN_USD_FOR_CARD) {
+  const usdcBalance =
+    user.balances.find((b) => b.asset === "USDC")?.amount ?? 0;
+  if (usdcBalance < MIN_USD_FOR_CARD) {
     return {
       ok: false,
-      error: `Saldo USD insuficiente · necesitas al menos $${MIN_USD_FOR_CARD}`,
+      error: `Saldo USDC insuficiente · necesitas al menos ${MIN_USD_FOR_CARD} USDC`,
     };
   }
 
@@ -674,7 +674,7 @@ export async function requestCardAction(
       expYear: new Date().getFullYear() + 4,
       cvv,
       holderName,
-      spendingSource: "USD",
+      spendingSource: "USDC",
       monthlyLimit: 2000,
     },
   });
@@ -847,9 +847,9 @@ export async function simulatePurchaseAction(
     }),
     // Cashback credited in USD
     prisma.balance.upsert({
-      where: { userId_asset: { userId: card.userId, asset: "USD" } },
+      where: { userId_asset: { userId: card.userId, asset: "USDC" } },
       update: { amount: { increment: cashbackUsd } },
-      create: { userId: card.userId, asset: "USD", amount: cashbackUsd },
+      create: { userId: card.userId, asset: "USDC", amount: cashbackUsd },
     }),
     prisma.cardTransaction.create({
       data: {
@@ -919,17 +919,17 @@ export async function buyTicketsAction(
   }
 
   const costUsd = tickets * round.ticketPriceUsd;
-  const usdBalance = user.balances.find((b) => b.asset === "USD");
-  if (!usdBalance || usdBalance.amount < costUsd) {
+  const usdcBalance = user.balances.find((b) => b.asset === "USDC");
+  if (!usdcBalance || usdcBalance.amount < costUsd) {
     return {
       ok: false,
-      error: `Saldo USD insuficiente · necesitas $${costUsd.toFixed(2)}`,
+      error: `Saldo USDC insuficiente · necesitas ${costUsd.toFixed(2)} USDC`,
     };
   }
 
   await prisma.$transaction([
     prisma.balance.update({
-      where: { userId_asset: { userId: user.id, asset: "USD" } },
+      where: { userId_asset: { userId: user.id, asset: "USDC" } },
       data: { amount: { decrement: costUsd } },
     }),
     prisma.raffleEntry.upsert({
@@ -949,7 +949,7 @@ export async function buyTicketsAction(
       data: {
         userId: user.id,
         type: "raffle_buy",
-        fromAsset: "USD",
+        fromAsset: "USDC",
         fromAmount: costUsd,
         status: "completed",
         description: `${tickets} ticket${tickets === 1 ? "" : "s"} de rifa`,
@@ -1174,7 +1174,7 @@ export async function createUserAction(
       isAdmin,
       kycStatus: "approved",
       balances: {
-        create: [{ asset: "USD", amount: initialUsd }],
+        create: [{ asset: "USDC", amount: initialUsd }],
       },
     },
   });
@@ -1448,7 +1448,7 @@ export async function toggleWatchlistAction(formData: FormData) {
   const user = await getCurrentUser();
   if (!user) return;
   const asset = String(formData.get("asset") ?? "");
-  if (!isAssetSymbol(asset) || asset === "USD") return;
+  if (!isAssetSymbol(asset)) return;
 
   const existing = await prisma.watchlist.findUnique({
     where: { userId_asset: { userId: user.id, asset } },
@@ -1482,7 +1482,7 @@ export async function createPriceAlertAction(
   const direction = String(formData.get("direction") ?? "");
   const targetUsd = Number(formData.get("targetUsd") ?? "0");
 
-  if (!isAssetSymbol(asset) || asset === "USD") {
+  if (!isAssetSymbol(asset)) {
     return { ok: false, error: "Activo no válido" };
   }
   if (direction !== "above" && direction !== "below") {

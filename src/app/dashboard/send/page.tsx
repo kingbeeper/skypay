@@ -8,7 +8,6 @@ export default async function SendPage() {
   const prices = await fetchPrices();
 
   const balances: Record<AssetSymbol, number> = {
-    USD: 0,
     BTC: 0,
     ETH: 0,
     USDC: 0,
@@ -21,7 +20,6 @@ export default async function SendPage() {
   }
 
   const priceSnapshot: Record<AssetSymbol, number> = {
-    USD: prices.USD.usd,
     BTC: prices.BTC.usd,
     ETH: prices.ETH.usd,
     USDC: prices.USDC.usd,

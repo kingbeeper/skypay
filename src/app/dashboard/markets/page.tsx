@@ -59,7 +59,7 @@ export default async function MarketsPage() {
   ]);
   const watchedSet = new Set(watchlist.map((w) => w.asset));
 
-  const rows = ASSET_LIST.filter((a) => a.kind !== "fiat")
+  const rows = ASSET_LIST
     .map((info) => {
       const symbol = info.symbol as AssetSymbol;
       const usd = prices[symbol]?.usd ?? 0;

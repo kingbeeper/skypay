@@ -27,9 +27,8 @@ type Props = {
 type Stage = "form" | "review";
 
 export function SendForm({ balances, prices, assets }: Props) {
-  const cryptoAssets = assets.filter((a) => a.symbol !== "USD") as (AssetInfo & {
-    symbol: CryptoAsset;
-  })[];
+  // All assets are crypto now (fiat was removed)
+  const cryptoAssets = assets as (AssetInfo & { symbol: CryptoAsset })[];
 
   const [asset, setAsset] = useState<CryptoAsset>("BTC");
   const [address, setAddress] = useState("");

@@ -6,7 +6,6 @@ export default async function SendUserPage() {
   const user = await requireUser();
 
   const balances: Record<AssetSymbol, number> = {
-    USD: 0,
     BTC: 0,
     ETH: 0,
     USDC: 0,

@@ -16,9 +16,9 @@ export default async function CardPage() {
   const card = await prisma.card.findFirst({ where: { userId: user.id } });
 
   if (!card) {
-    const usdBalance =
-      user.balances.find((b) => b.asset === "USD")?.amount ?? 0;
-    return <CardRequestLanding usdBalance={usdBalance} />;
+    const usdcBalance =
+      user.balances.find((b) => b.asset === "USDC")?.amount ?? 0;
+    return <CardRequestLanding usdBalance={usdcBalance} />;
   }
 
   const [transactions, prices] = await Promise.all([
@@ -41,7 +41,6 @@ export default async function CardPage() {
     where: { userId: user.id },
   });
   const balances: Record<AssetSymbol, number> = {
-    USD: 0,
     BTC: 0,
     ETH: 0,
     USDC: 0,
@@ -114,8 +113,7 @@ export default async function CardPage() {
             {card.spendingSource}
           </div>
           <div className="mt-1 text-xs text-zinc-500">
-            {formatAmount(balances[source], source)} {source}
-            {source !== "USD" && ` · ${formatUsd(sourceUsdValue)}`}
+            {formatAmount(balances[source], source)} {source} · {formatUsd(sourceUsdValue)}
           </div>
         </div>
         <div className="bg-[color:var(--background)] p-6">

@@ -1,22 +1,15 @@
-export type AssetSymbol = "USD" | "BTC" | "ETH" | "USDC" | "SOL";
+export type AssetSymbol = "BTC" | "ETH" | "USDC" | "SOL";
 
 export type AssetInfo = {
   symbol: AssetSymbol;
   name: string;
-  kind: "fiat" | "crypto" | "stable";
+  kind: "crypto" | "stable";
   coingeckoId?: string;
   precision: number;
   color: string;
 };
 
 export const ASSETS: Record<AssetSymbol, AssetInfo> = {
-  USD: {
-    symbol: "USD",
-    name: "US Dollar",
-    kind: "fiat",
-    precision: 2,
-    color: "#22c55e",
-  },
   BTC: {
     symbol: "BTC",
     name: "Bitcoin",

@@ -249,7 +249,7 @@ export default async function UserDetailPage({
                       {formatAmount(amount, a.symbol)}
                     </td>
                     <td className="text-right px-5 py-3.5 font-mono text-zinc-400 hidden sm:table-cell">
-                      {a.kind === "fiat" ? "—" : formatUsd(price)}
+                      {formatUsd(price)}
                     </td>
                     <td className="text-right px-5 py-3.5 font-mono font-medium tabular-nums">
                       {formatUsd(usdValue)}

@@ -58,11 +58,38 @@ async function main() {
     },
   });
 
+  // One-time migration: merge any legacy USD balances into USDC, then delete
+  // the USD rows. USD is no longer a supported asset.
+  const legacyUsd = await prisma.balance.findMany({ where: { asset: "USD" } });
+  for (const b of legacyUsd) {
+    const usdc = await prisma.balance.findUnique({
+      where: { userId_asset: { userId: b.userId, asset: "USDC" } },
+    });
+    if (usdc) {
+      await prisma.$transaction([
+        prisma.balance.update({
+          where: { id: usdc.id },
+          data: { amount: { increment: b.amount } },
+        }),
+        prisma.balance.delete({ where: { id: b.id } }),
+      ]);
+    } else {
+      await prisma.balance.update({
+        where: { id: b.id },
+        data: { asset: "USDC" },
+      });
+    }
+  }
+  // Update any cards still pointing at USD as spending source
+  await prisma.card.updateMany({
+    where: { spendingSource: "USD" },
+    data: { spendingSource: "USDC" },
+  });
+
   const seedBalances: Array<{ asset: string; amount: number }> = [
-    { asset: "USD", amount: 5000 },
+    { asset: "USDC", amount: 6000 },
     { asset: "BTC", amount: 0.05 },
     { asset: "ETH", amount: 1.2 },
-    { asset: "USDC", amount: 1000 },
     { asset: "SOL", amount: 10 },
   ];
 
@@ -95,7 +122,7 @@ async function main() {
       expYear: new Date().getFullYear() + 4,
       cvv: String(Math.floor(100 + Math.random() * 900)),
       holderName: "DEMO INVESTOR",
-      spendingSource: "USD",
+      spendingSource: "USDC",
       monthlyLimit: 2000,
       physicalRequested: false,
     },
@@ -113,7 +140,7 @@ async function main() {
         merchant: m.name,
         category: m.category,
         amountUsd,
-        sourceAsset: "USD",
+        sourceAsset: "USDC",
         sourceAmount: amountUsd,
         rate: 1,
         status: "approved",

@@ -15,7 +15,7 @@ type Props = {
 };
 
 export function P2PForm({ balances, assets }: Props) {
-  const [asset, setAsset] = useState<AssetSymbol>("USD");
+  const [asset, setAsset] = useState<AssetSymbol>("USDC");
   const [amount, setAmount] = useState("");
   const [state, formAction, pending] = useActionState<
     P2PSendResult,

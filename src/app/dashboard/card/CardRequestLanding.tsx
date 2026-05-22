@@ -89,7 +89,7 @@ export function CardRequestLanding({ usdBalance }: Props) {
             <span className="font-mono text-amber-300">
               {formatUsd(remaining)}
             </span>{" "}
-            en USD para alcanzar el mínimo. Puedes depositar fiat o swap desde
+            en USDC para alcanzar el mínimo. Puedes depositar USDC o swap desde
             cripto.
           </p>
         )}

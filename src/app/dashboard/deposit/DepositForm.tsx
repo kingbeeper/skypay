@@ -24,15 +24,15 @@ const METHODS: Array<{ id: Method; label: string; sub: string }> = [
   { id: "crypto", label: "Depósito cripto", sub: "instantáneo · gratis" },
 ];
 
-const PRESETS_USD = [100, 500, 1000, 5000];
-const PRESETS_CRYPTO: Record<Exclude<AssetSymbol, "USD" | "USDC">, number[]> = {
+const PRESETS_STABLE = [100, 500, 1000, 5000];
+const PRESETS_CRYPTO: Record<Exclude<AssetSymbol, "USDC">, number[]> = {
   BTC: [0.01, 0.05, 0.1, 0.5],
   ETH: [0.1, 0.5, 1, 5],
   SOL: [1, 5, 10, 50],
 };
 
 export function DepositForm({ balances, prices, assets }: Props) {
-  const [asset, setAsset] = useState<AssetSymbol>("USD");
+  const [asset, setAsset] = useState<AssetSymbol>("USDC");
   const [amount, setAmount] = useState<string>("");
   const [method, setMethod] = useState<Method>("bank");
 
@@ -46,9 +46,9 @@ export function DepositForm({ balances, prices, assets }: Props) {
   const usdValue = valid ? numeric * (prices[asset] ?? 0) : 0;
 
   const presets: number[] =
-    asset === "USD" || asset === "USDC"
-      ? PRESETS_USD
-      : PRESETS_CRYPTO[asset as Exclude<AssetSymbol, "USD" | "USDC">] ?? [];
+    asset === "USDC"
+      ? PRESETS_STABLE
+      : PRESETS_CRYPTO[asset as Exclude<AssetSymbol, "USDC">] ?? [];
 
   return (
     <form action={formAction} className="space-y-5">
@@ -129,9 +129,7 @@ export function DepositForm({ balances, prices, assets }: Props) {
         </div>
         <div className="mt-2 text-xs font-mono text-zinc-500">
           ≈ {formatUsd(usdValue)}{" "}
-          <span className="ml-2 text-zinc-600">
-            {ASSETS[asset].kind === "fiat" ? "fiat" : ASSETS[asset].name}
-          </span>
+          <span className="ml-2 text-zinc-600">{ASSETS[asset].name}</span>
         </div>
 
         {presets.length > 0 && (
@@ -143,7 +141,7 @@ export function DepositForm({ balances, prices, assets }: Props) {
                 onClick={() => setAmount(String(p))}
                 className="h-8 px-3 rounded-full border border-white/10 bg-white/[0.02] text-xs font-mono text-zinc-300 hover:bg-white/[0.06] transition-colors"
               >
-                {asset === "USD" || asset === "USDC" ? "$" : ""}
+                {asset === "USDC" ? "$" : ""}
                 {p}
               </button>
             ))}

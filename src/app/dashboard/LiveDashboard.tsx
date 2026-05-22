@@ -125,7 +125,7 @@ export function LiveDashboard({ balances, initialPrices }: Props) {
   // missing entries default to 0. This keeps the "Activos" panel useful as a
   // live price board even for accounts with no holdings yet.
   const balanceMap = new Map(balances.map((b) => [b.asset, b.amount]));
-  const rows = ASSET_LIST.filter((a) => a.kind !== "fiat").map((info) => {
+  const rows = ASSET_LIST.map((info) => {
     const amount = balanceMap.get(info.symbol) ?? 0;
     const price = prices[info.symbol]?.usd ?? 0;
     const change24h = prices[info.symbol]?.change24h ?? 0;
